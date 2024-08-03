@@ -66,7 +66,7 @@ class TempBanCommand(Command):
         self.storage = client_instance.storage
         self.usage = f"Usage: {self.client.prefix}ban <user ID> <duration> <reason>"
         self.invalid_user = "There is no user with the user ID: {user_id}. {usage}"
-        self.invalid_duration = "The duration provided is invalid. The duration must be a string that looks like: 1w3d5h30m20s or a positive number in seconds. {usage}"
+        self.invalid_duration = "The provided format is invalid. The duration must be a string that looks like: 1w3d5h30m20s or a positive number in seconds. {usage}"
         self.not_enough_arguments = "You must provide a user to ban. {usage}"
         self.not_a_user_id = "{user_id} is not a valid user ID. {usage}"
 

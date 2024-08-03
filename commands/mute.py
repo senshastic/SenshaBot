@@ -6,9 +6,12 @@ import discord
 
 from bot import ModerationBot
 from commands.base import Command
+from datetime import timedelta
 from helpers.embed_builder import EmbedBuilder
 from helpers.misc_functions import (author_is_mod, is_integer,
                                     is_valid_duration, parse_duration)
+
+
 
 
 class UnMuteCommand(Command):
@@ -129,7 +132,7 @@ class TempMuteCommand(Command):
         self.storage = client_instance.storage
         self.usage = f"Usage: {self.client.prefix}tempmute <user id> <duration> [reason]"
         self.invalid_user = "There is no user with the userID: {user_id}. {usage}"
-        self.invalid_duration = "The duration provided is invalid. The duration must be a string that looks like: 1w3d5h30m20s or a positive number in seconds. {usage}"
+        self.invalid_duration = "The provided format is invalid. The duration must be a string that looks like: 1w3d5h30m20s or a positive number in seconds. {usage}"
         self.not_enough_arguments = "You must provide a user to temp mute. {usage}"
         self.not_a_user_id = "{user_id} is not a valid user ID. {usage}"
 
@@ -139,7 +142,7 @@ class TempMuteCommand(Command):
             if len(command) >= 2:
                 if is_integer(command[0]):
                     user_id = int(command[0])
-                    duration = parse_duration(command[1])
+                    duration = int(parse_duration(command[1]))
                     if is_valid_duration(duration):
                         guild_id = str(message.guild.id)
                         mute_duration = int(time.time()) + duration
@@ -157,7 +160,8 @@ class TempMuteCommand(Command):
                             reason = f"Temp muted by {message.author.name}"
                         if user is not None:
                             # Add the muted role and store them in guilds muted users list. We use -1 as the duration to state that it lasts forever.
-                            await user.add_roles(muted_role, reason=f"Muted by {message.author.name}")
+                            await user.timeout(timedelta(seconds=duration), reason=f"Muted by {message.author.name}")
+                            # await user.add_roles(muted_role, reason=f"Muted by {message.author.name}")
                             self.storage.settings["guilds"][guild_id]["muted_users"][str(user_id)] = {}
                             self.storage.settings["guilds"][guild_id]["muted_users"][str(user_id)]["duration"] = mute_duration
                             self.storage.settings["guilds"][guild_id]["muted_users"][str(user_id)]["reason"] = reason

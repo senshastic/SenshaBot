@@ -69,7 +69,7 @@ def parse_duration(string: str) -> int:
         int: The time in seconds of the duration string
     """
     if is_integer(string):
-        return string
+        return int(string)
     else:
         values = {"w": 604800, "d": 86400, "h": 3600, "m": 60, "s": 1}
         nums = []
@@ -81,9 +81,12 @@ def parse_duration(string: str) -> int:
                 continue
             else:
                 multiple = values.get(char, 1)
-                num = int("".join(tempnums))
-                tempnums.clear()
-                nums.append(num * multiple)
+                try:
+                    num = int("".join(tempnums))
+                    tempnums.clear()
+                    nums.append(num * multiple)
+                except ValueError:
+                    return -1
         if len(nums) > 0:
             return sum(nums)
         else:
