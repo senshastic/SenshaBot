@@ -159,7 +159,7 @@ class TempMuteCommand(Command):
                         else:
                             reason = f"Temp muted by {message.author.name}"
                         if user is not None:
-                            # Add the muted role and store them in guilds muted users list. We use -1 as the duration to state that it lasts forever.
+                            # Add the timeout and store users in guilds muted users list. 
                             await user.timeout(timedelta(seconds=duration), reason=f"Muted by {message.author.name}")
                             # await user.add_roles(muted_role, reason=f"Muted by {message.author.name}")
                             self.storage.settings["guilds"][guild_id]["muted_users"][str(user_id)] = {}
@@ -195,3 +195,4 @@ class TempMuteCommand(Command):
 
 # Collects a list of classes in the file
 classes = inspect.getmembers(sys.modules[__name__], lambda member: inspect.isclass(member) and member.__module__ == __name__)
+

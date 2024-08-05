@@ -77,6 +77,7 @@ class StorageManagement(JsonFileManager):
             "log_channel_id": 0,
             "mod_roles": [],
             "muted_users": {},
+            "warned_users": {},
             "banned_users": {}
         }
         await self.write_file_to_disk()

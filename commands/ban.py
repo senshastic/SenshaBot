@@ -88,7 +88,7 @@ class TempBanCommand(Command):
                         temp = [item for item in command if command.index(item) > 1]
                         reason = " ".join(temp)
                         if user is not None:
-                            # Add the muted role and store them in guilds muted users list. We use -1 as the duration to state that it lasts forever.
+                            # Add the banned role and store them in guilds banned users list. We use -1 as the duration to state that it lasts forever.
                             await message.guild.ban(user, reason=reason)
                             self.storage.settings["guilds"][guild_id]["banned_users"][str(user_id)] = {}
                             self.storage.settings["guilds"][guild_id]["banned_users"][str(user_id)]["duration"] = ban_duration
