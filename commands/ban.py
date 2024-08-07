@@ -1,6 +1,8 @@
 import inspect
 import sys
 import time
+import json 
+import re 
 
 import discord
 
@@ -25,6 +27,8 @@ class UnBanCommand(Command):
         command = kwargs.get("args")
         if await author_is_mod(message.author, self.storage):
             if len(command) == 1:
+                if re.match(r'<@\d{18}>', command[0]):
+                    command[0] = command[0][2:-1]
                 if is_integer(command[0]):
                     user_id = int(command[0])
                     guild_id = str(message.guild.id)
@@ -74,6 +78,8 @@ class TempBanCommand(Command):
         command = kwargs.get("args")
         if await author_is_mod(message.author, self.storage):
             if len(command) >= 3:
+                if re.match(r'<@\d{18}>', command[0]):
+                    command[0] = command[0][2:-1]
                 if is_integer(command[0]):
                     user_id = int(command[0])
                     duration = parse_duration(command[1])

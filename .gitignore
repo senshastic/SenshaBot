@@ -1,5 +1,6 @@
 # settings.json
 token.txt
-
+.venv/*
+settings.json
 **__pycache__/
 *.code-workspace

@@ -8,7 +8,8 @@ from commands.base import Command
 
 
 class CommandRegistry:
-    """ Command registry class that handles dyanmic class loading and getting info for a command """
+    """Command registry class that handles dyanmic class loading and getting info for a command"""
+
     commands = {}
     py_files = []
     new_py_files = []
@@ -16,29 +17,31 @@ class CommandRegistry:
     module_changes = False
 
     def __init__(self) -> None:
-        print("Initializing the command registry handler. This does not start registering commands!")
+        print(
+            "Initializing the command registry handler. This does not start registering commands!"
+        )
         self.get_py_files(overwrite=True)
 
     def set_instance(self, instance: ModerationBot) -> None:
-        """ Gives the command registry and instance of the bot """
+        """Gives the command registry and instance of the bot"""
         self.instance = instance
 
     def register(self, cmd: str, instance: ModerationBot) -> None:
-        """ Method that registers command modules """
+        """Method that registers command modules"""
         if cmd not in self.commands:
             self.commands[cmd] = instance
         else:
             print("Command Instance already present: " + cmd)
 
     def unregister(self, cmd: str) -> None:
-        """ Method to unregister a command module by name """
+        """Method to unregister a command module by name"""
         try:
             self.commands.pop(cmd)
         except KeyError:
             pass
 
     def get_command_names(self) -> list:
-        """ Gets all the command names """
+        """Gets all the command names"""
         return [cmd for cmd, _ in self.commands.items()]
 
     def get_py_files(self, overwrite: Optional[bool] = False) -> None:
@@ -50,7 +53,11 @@ class CommandRegistry:
         from bot import __location__
 
         # Collects file names for all files in the commands directory that end in .py
-        new_py_files = [py_file for py_file in os.listdir(os.path.join(__location__, "commands")) if os.path.splitext(py_file)[1] == ".py"]
+        new_py_files = [
+            py_file
+            for py_file in os.listdir(os.path.join(__location__, "commands"))
+            if os.path.splitext(py_file)[1] == ".py"
+        ]
         if len(new_py_files) != self.py_files:
             self.new_py_files = new_py_files
             self.module_changes = True
@@ -59,7 +66,7 @@ class CommandRegistry:
                 self.py_files = new_py_files
 
     def register_commands(self) -> None:
-        """ Registers all commands with the bot """
+        """Registers all commands with the bot"""
         print("Registering commands...")
         # Clear commands storage
         self.commands.clear()
@@ -83,10 +90,14 @@ class CommandRegistry:
                     clazz = class_info(self.instance)
                     clazz.register_self()
                 else:
-                    print("Command class: {} in file: {} is not a subclass of the base command class. Please fix this (see repository for details)!".format(name, command_file))
+                    print(
+                        "Command class: {} in file: {} is not a subclass of the base command class. Please fix this (see repository for details)!".format(
+                            name, command_file
+                        )
+                    )
 
     async def reload_commands(self) -> None:
-        """ Gets the changed python files list and reloads the commands if there are changes """
+        """Gets the changed python files list and reloads the commands if there are changes"""
         self.get_py_files()
         if self.module_changes:
             self.module_changes = False

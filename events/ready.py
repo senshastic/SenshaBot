@@ -28,4 +28,7 @@ class ReadyEvent(EventHandler):
 
 
 # Collects a list of classes in the file
-classes = inspect.getmembers(sys.modules[__name__], lambda member: inspect.isclass(member) and member.__module__ == __name__)
+classes = inspect.getmembers(
+    sys.modules[__name__],
+    lambda member: inspect.isclass(member) and member.__module__ == __name__,
+)

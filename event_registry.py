@@ -9,7 +9,7 @@ from events.base import EventHandler
 
 
 class EventRegistry:
-    """ Event registry class that handles dyanmic class loading and getting info for an event handler """
+    """Event registry class that handles dyanmic class loading and getting info for an event handler"""
 
     def __init__(self) -> None:
         self.event_handlers = {}
@@ -17,15 +17,17 @@ class EventRegistry:
         self.new_py_files = []
         self.modules = []
         self.module_changes = False
-        print("Initializing the event registry handler. This does not start registering events!")
+        print(
+            "Initializing the event registry handler. This does not start registering events!"
+        )
         self.get_py_files(overwrite=True)
 
     def set_instance(self, instance: ModerationBot) -> None:
-        """ Gives the event registry and instance of the bot """
+        """Gives the event registry and instance of the bot"""
         self.instance = instance
 
     def register(self, event: str, instance: ModerationBot) -> None:
-        """ Method that registers event modules """
+        """Method that registers event modules"""
         if event not in self.event_handlers:
             self.event_handlers[event] = []
         if instance not in self.event_handlers[event]:
@@ -34,7 +36,7 @@ class EventRegistry:
             print("Event Instance already present: " + instance)
 
     def unregister(self, event: str, instance: ModerationBot) -> None:
-        """ Method to unregister an event module by name """
+        """Method to unregister an event module by name"""
         try:
             self.event_handlers[event].remove(instance)
             # No more event handlers are registered for the event, remove it from the list and delete the event method from the bot
@@ -53,7 +55,11 @@ class EventRegistry:
         from bot import __location__
 
         # Collects file names for all files in the events directory that end in .py
-        new_py_files = [py_file for py_file in os.listdir(os.path.join(__location__, "events")) if os.path.splitext(py_file)[1] == ".py"]
+        new_py_files = [
+            py_file
+            for py_file in os.listdir(os.path.join(__location__, "events"))
+            if os.path.splitext(py_file)[1] == ".py"
+        ]
         if len(new_py_files) != self.py_files:
             self.new_py_files = new_py_files
             self.module_changes = True
@@ -62,7 +68,7 @@ class EventRegistry:
                 self.py_files = new_py_files
 
     def register_events(self) -> None:
-        """ Registers all events with the bot """
+        """Registers all events with the bot"""
         print("Registering events...")
         # Clear events storage
         self.event_handlers.clear()
@@ -89,15 +95,27 @@ class EventRegistry:
                     if event_name is not None:
                         if not hasattr(self.instance, event_name):
                             # Removed the asyncio.coroutine part... suspicious and if this causes issues, beat Colin with a stick :D
-                            setattr(self.instance, event_name, functools.partial(self.instance.event_template, event_name=event_name))
+                            setattr(
+                                self.instance,
+                                event_name,
+                                functools.partial(
+                                    self.instance.event_template, event_name=event_name
+                                ),
+                            )
                     else:
-                        print("Event handler has no event name configured! This is an error and the event will not fire!")
+                        print(
+                            "Event handler has no event name configured! This is an error and the event will not fire!"
+                        )
                         clazz.unregister_self()
                 else:
-                    print("Event handler: {} in file: {} is not a subclass of the base event handler class. Please fix this (see repository for details)!".format(name, event_file))
+                    print(
+                        "Event handler: {} in file: {} is not a subclass of the base event handler class. Please fix this (see repository for details)!".format(
+                            name, event_file
+                        )
+                    )
 
     async def reload_events(self) -> None:
-        """ Gets the changed python files list and reloads the events if there are changes """
+        """Gets the changed python files list and reloads the events if there are changes"""
         self.get_py_files()
         if self.module_changes:
             self.module_changes = False
@@ -105,7 +123,7 @@ class EventRegistry:
             self.register_events()
 
     def get_all_event_handlers(self) -> KeysView[str]:
-        """ Returns a dict of all event handlers """
+        """Returns a dict of all event handlers"""
         return self.event_handlers.keys()
 
     def get_event_handlers(self, event) -> Union[list, None]:

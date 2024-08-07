@@ -20,7 +20,9 @@ class MemberJoinEvent(EventHandler):
         guild = member.guild
         guild_id = str(guild.id)
         muted_role_id = int(self.storage.settings["guilds"][guild_id]["muted_role_id"])
-        log_channel_id = int(self.storage.settings["guilds"][guild_id]["log_channel_id"])
+        log_channel_id = int(
+            self.storage.settings["guilds"][guild_id]["log_channel_id"]
+        )
         muted_role = guild.get_role(muted_role_id)
         log_channel = guild.get_channel(log_channel_id)
         muted_users = self.storage.settings["guilds"][guild_id]["muted_users"]
@@ -38,13 +40,20 @@ class MemberJoinEvent(EventHandler):
                     mutes_to_remove.append(user_id)
                     # Build a mute expire embed and message it to the log channel
                     embed_builder = EmbedBuilder(event="muteexpire")
-                    await embed_builder.add_field(name="**Unmuted user**", value=f"`{user.name}`")
-                    await embed_builder.add_field(name="**Mute duration**", value=f"`{normal_duration}`")
+                    await embed_builder.add_field(
+                        name="**Unmuted user**", value=f"`{user.name}`"
+                    )
+                    await embed_builder.add_field(
+                        name="**Mute duration**", value=f"`{normal_duration}`"
+                    )
                     embed = await embed_builder.get_embed()
                     await log_channel.send(embed=embed)
                 else:
                     # Mute is not expired. Re-add it to the offender
-                    await user.add_roles(muted_role, reason="Remuted user since they had an active mute when they rejoined the server")
+                    await user.add_roles(
+                        muted_role,
+                        reason="Remuted user since they had an active mute when they rejoined the server",
+                    )
 
         for user_id in mutes_to_remove:
             self.storage.settings["guilds"][guild_id]["muted_users"].pop(str(user_id))
@@ -60,7 +69,9 @@ class MemberBanEvent(EventHandler):
     async def handle(self, guild: discord.Guild, *args, **kwargs) -> None:
 
         guild_id = str(guild.id)
-        log_channel_id = int(self.storage.settings["guilds"][guild_id]["log_channel_id"])
+        log_channel_id = int(
+            self.storage.settings["guilds"][guild_id]["log_channel_id"]
+        )
         log_channel = guild.get_channel(log_channel_id)
 
         # Get the actions we already logged recently
@@ -79,10 +90,18 @@ class MemberBanEvent(EventHandler):
             else:
                 # Build a ban embed with the info.
                 embed_builder = EmbedBuilder(event="ban")
-                await embed_builder.add_field(name="**Executor**", value=f"`{entry.user.name}`")
-                await embed_builder.add_field(name="**Banned User**", value=f"`{entry.target.name}`")
-                await embed_builder.add_field(name="**Reason**", value=f"`{entry.reason}`")
-                await embed_builder.add_field(name="**Audit Log ID**", value=f"`{entry.id}`")
+                await embed_builder.add_field(
+                    name="**Executor**", value=f"`{entry.user.name}`"
+                )
+                await embed_builder.add_field(
+                    name="**Banned User**", value=f"`{entry.target.name}`"
+                )
+                await embed_builder.add_field(
+                    name="**Reason**", value=f"`{entry.reason}`"
+                )
+                await embed_builder.add_field(
+                    name="**Audit Log ID**", value=f"`{entry.id}`"
+                )
                 embed = await embed_builder.get_embed()
                 await log_channel.send(embed=embed)
 
@@ -96,7 +115,9 @@ class MemberKickEvent(EventHandler):
     async def handle(self, guild: discord.Guild, *args, **kwargs) -> None:
 
         guild_id = str(guild.id)
-        log_channel_id = int(self.storage.settings["guilds"][guild_id]["log_channel_id"])
+        log_channel_id = int(
+            self.storage.settings["guilds"][guild_id]["log_channel_id"]
+        )
         log_channel = guild.get_channel(log_channel_id)
 
         # Get the actions we already logged recently
@@ -108,20 +129,33 @@ class MemberKickEvent(EventHandler):
                         logged_actions.append(int(field.value.replace("`", "")))
 
         # Get recent kick actions
-        async for entry in guild.audit_logs(action=discord.AuditLogAction.kick, limit=5):
+        async for entry in guild.audit_logs(
+            action=discord.AuditLogAction.kick, limit=5
+        ):
             # If the entry was made by the bot or it's entry ID has already been logged, skip it.
             if entry.user == self.client.user or entry.id in logged_actions:
                 continue
             else:
                 # Build a kick embed with the info.
                 embed_builder = EmbedBuilder(event="kick")
-                await embed_builder.add_field(name="**Executor**", value=f"`{entry.user.name}`")
-                await embed_builder.add_field(name="**Kicked User**", value=f"`{entry.target.name}`")
-                await embed_builder.add_field(name="**Reason**", value=f"`{entry.reason}`")
-                await embed_builder.add_field(name="**Audit Log ID**", value=f"`{entry.id}`")
+                await embed_builder.add_field(
+                    name="**Executor**", value=f"`{entry.user.name}`"
+                )
+                await embed_builder.add_field(
+                    name="**Kicked User**", value=f"`{entry.target.name}`"
+                )
+                await embed_builder.add_field(
+                    name="**Reason**", value=f"`{entry.reason}`"
+                )
+                await embed_builder.add_field(
+                    name="**Audit Log ID**", value=f"`{entry.id}`"
+                )
                 embed = await embed_builder.get_embed()
                 await log_channel.send(embed=embed)
 
 
 # Collects a list of classes in the file
-classes = inspect.getmembers(sys.modules[__name__], lambda member: inspect.isclass(member) and member.__module__ == __name__)
+classes = inspect.getmembers(
+    sys.modules[__name__],
+    lambda member: inspect.isclass(member) and member.__module__ == __name__,
+)

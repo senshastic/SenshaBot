@@ -20,17 +20,25 @@ class ModerationBot(discord.Client):
 
         # Initialize event registry
         from event_registry import event_registry
+
         self.event_registry = event_registry
         self.event_registry.set_instance(self)
         self.event_registry.register_events()
-        print("The bot has been initialized with the following events: " + ", ".join(self.event_registry.get_all_event_handlers()))
+        print(
+            "The bot has been initialized with the following events: "
+            + ", ".join(self.event_registry.get_all_event_handlers())
+        )
 
         # Initialize the command registry
         from command_registry import registry
+
         self.registry = registry
         self.registry.set_instance(self)
         self.registry.register_commands()
-        print("The bot has been initialized with the following commands: " + ", ".join(self.registry.get_command_names()))
+        print(
+            "The bot has been initialized with the following commands: "
+            + ", ".join(self.registry.get_command_names())
+        )
 
         # Permissions for the muted role and for the default role
         self.muted_permissions = discord.PermissionOverwrite(
@@ -38,17 +46,16 @@ class ModerationBot(discord.Client):
             add_reactions=False,
             attach_files=False,
             speak=False,
-            send_tts_messages=False
+            send_tts_messages=False,
         )
         self.default_permissions = discord.PermissionOverwrite(
-            read_messages=False,
-            send_messages=False
+            read_messages=False, send_messages=False
         )
         # Start the discord client
         discord.Client.__init__(self, intents=intents)
 
     async def event_template(self, *args, **kwargs) -> None:
-        """ The template event function used to replicate event functions dynamically.
+        """The template event function used to replicate event functions dynamically.
         See event_registry.EventRegistry.register_events() where setattr() is used to add event handlers to this class
         This basically allows us to write one cookie-cutter function instead of implementing the whole discord.py event API
         """
@@ -62,11 +69,15 @@ class ModerationBot(discord.Client):
     """ DISCORD CLIENT EVENTS START HERE (DEPRECATED, USE EVENT HANDLERS!) """
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
-        print(f"Adding a guild to the bot's system since they invited us. Guild name: {guild.name}")
+        print(
+            f"Adding a guild to the bot's system since they invited us. Guild name: {guild.name}"
+        )
         await self.setup_guild(guild)
 
     async def on_guild_remove(self, guild: discord.Guild) -> None:
-        print(f"Removing guild from guild storage since they removed the bot. Guild name: {guild.name}")
+        print(
+            f"Removing guild from guild storage since they removed the bot. Guild name: {guild.name}"
+        )
         self.storage.settings.pop(guild.id)
         await self.storage.write_file_to_disk()
 
@@ -76,7 +87,9 @@ class ModerationBot(discord.Client):
         muted_role_id = int(self.storage.settings["guilds"][guild_id]["muted_role_id"])
         muted_role = discord.utils.get(guild.roles, id=muted_role_id)
         if muted_role is not None:
-            await channel.set_permissions(target=muted_role, overwrite=self.muted_permissions)
+            await channel.set_permissions(
+                target=muted_role, overwrite=self.muted_permissions
+            )
 
     """ DISCORD CLIENT EVENTS END HERE (DEPRECATED, USE EVENT HANDLERS!) """
 
@@ -110,25 +123,37 @@ class ModerationBot(discord.Client):
         if muted_role is None:
             # Run the role check again to make sure they didn't delete the role or something went wrong in the flow of things.
             await self.check_for_muted_role(guild)
-            muted_role_id = int(self.storage.settings["guilds"][guild_id]["muted_role_id"])
+            muted_role_id = int(
+                self.storage.settings["guilds"][guild_id]["muted_role_id"]
+            )
             muted_role = discord.utils.get(guild.roles, id=muted_role_id)
         # Edit all text and voice channels to deny the muted role from talking or doing certain actions
         for text_channel in guild.text_channels:
-            await text_channel.set_permissions(target=muted_role, overwrite=self.muted_permissions)
+            await text_channel.set_permissions(
+                target=muted_role, overwrite=self.muted_permissions
+            )
 
         for voice_channel in guild.voice_channels:
-            await voice_channel.set_permissions(target=muted_role, overwrite=self.muted_permissions)
+            await voice_channel.set_permissions(
+                target=muted_role, overwrite=self.muted_permissions
+            )
 
     async def create_log_channel(self, guild: discord.Guild) -> None:
         guild_id = str(guild.id)
         # Get the log channel ID from disk and then try to get it from discord
-        log_channel_id = int(self.storage.settings["guilds"][guild_id]["log_channel_id"])
+        log_channel_id = int(
+            self.storage.settings["guilds"][guild_id]["log_channel_id"]
+        )
         log_channel = discord.utils.get(guild.text_channels, id=log_channel_id)
         overwrites = {guild.default_role: self.default_permissions}
         if log_channel is None:
             # The log channel doesn't exist so we create it
-            log_channel = await guild.create_text_channel(name="moderation", overwrites=overwrites)
-            await log_channel.send("I created this channel for moderation logs. Please edit the channel permissions to allow what users you want to see this channel.")
+            log_channel = await guild.create_text_channel(
+                name="moderation", overwrites=overwrites
+            )
+            await log_channel.send(
+                "I created this channel for moderation logs. Please edit the channel permissions to allow what users you want to see this channel."
+            )
             self.storage.settings["guilds"][guild_id]["log_channel_id"] = log_channel.id
             await self.storage.write_file_to_disk()
 
