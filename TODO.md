@@ -1,7 +1,5 @@
 ### Todo
 
-- `!dm`
-  - Dms user
 
 - `!post`
   - Posts in a channel
@@ -9,13 +7,8 @@
 - `!all the automatic messages things`
   - Removes warns from user 
 
-  Duration for warns 
-  dm user when warned 
-  autopunishment 
 
-
-
-  remove the bot repetting shit 
+Clarification command - verbal 
 
 Rajouter boutons embed 
 

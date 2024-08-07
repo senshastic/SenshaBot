@@ -9,12 +9,18 @@ import discord
 from bot import ModerationBot
 from commands.base import Command
 from datetime import datetime
-from commands.mute import TempMuteCommand
+from commands.mute import timeoutCommand
 from commands.ban import TempBanCommand
+from commands.dm import DMCommand
 from helpers.embed_builder import EmbedBuilder
 from helpers.misc_functions import (author_is_mod, is_integer,
                                     is_valid_duration, parse_duration)
 
+
+import discord
+import re
+import time
+from datetime import timedelta
 
 class WarnCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
@@ -22,9 +28,12 @@ class WarnCommand(Command):
         self.client = client_instance
         self.storage = client_instance.storage
         self.usage = f"Usage: {self.client.prefix}warn <user id> [reason]"
-        self.invalid_user = "There is no user with the userID: {user_id}. {usage}"
+        self.invalid_user = "There is no user with the user ID: {user_id}. {usage}"
         self.not_enough_arguments = "You must provide a user to warn. {usage}"
         self.not_a_user_id = "{user_id} is not a valid user ID. {usage}"
+
+        # Initialize the DMCommand class
+        self.dm_command = DMCommand(client_instance)
 
     async def execute(self, message: discord.Message, **kwargs) -> None:
         command = kwargs.get("args")
@@ -66,30 +75,37 @@ class WarnCommand(Command):
                         warned_users[str(user_id)]["clearer"].append("")
                         warned_users[str(user_id)]["reason"].append(f"{reason}")
                         warned_users[str(user_id)]["timestamp"].append(time.time())
-                        warned_users[str(user_id)]["duration"].append(10)
+                        warned_users[str(user_id)]["duration"].append(60*5)
                         warned_users[str(user_id)]["normal_duration"].append(-1)
                         self.storage.settings["guilds"][guild_id]["warned_users"] = warned_users
                         await self.storage.write_file_to_disk()
-                        await message.channel.send(f"**Warned user:** `{user.name}`**. Reason:** `{reason}`")
-                        
-                        active_warns = len(warned_users[str(user_id)]["active_weight"])
 
-                        if active_warns == 2:
-                            temp_mute_command = TempMuteCommand(self.client)
+                        active_warns = sum(warned_users[str(user_id)]["active_weight"])
+
+                        await message.channel.send(f"**Warned user:** `{user.name}`**. Reason:** `{reason}`**.** \n *Number of active warns: `{active_warns}`.*")
+                        
+                        # Determine the DM subject based on the weight
+                        if weight > 0:
+                            subject = f"You have been warned in the {message.guild.name} server"
+                        else:
+                            subject = f"You have received a rule clarification from the {message.guild.name} server"
+
+                        # Send DM using DMCommand
+                        dm_args = [str(user_id), f"**{subject}**", reason]
+                        await self.dm_command.execute(message, args=dm_args)
+
+                        # Takes punishment action 
+                        
+
+                        if active_warns == 2 and weight != 0:
+                            temp_mute_command = timeoutCommand(self.client)
                             await temp_mute_command.execute(message, args=[str(user_id), "24h", "Accrued two warnings"])
-                        elif active_warns >= 3:
+                        elif active_warns >= 3 and weight != 0:
                             temp_ban_command = TempBanCommand(self.client)
                             await temp_ban_command.execute(message, args=[str(user_id), "24h", "Accrued three warnings"])
                         
-                        embed_builder = EmbedBuilder(event="warn")
-                        await embed_builder.add_field(name="**Executor**", value=f"`{message.author.name}`")
-                        await embed_builder.add_field(name="**Warned user**", value=f"`{user.name}`")
-                        await embed_builder.add_field(name="**Reason**", value=f"`{reason}`")
-                        embed = await embed_builder.get_embed()
                         log_channel_id = int(self.storage.settings["guilds"][guild_id]["log_channel_id"])
                         log_channel = message.guild.get_channel(log_channel_id)
-                        if log_channel is not None:
-                            await log_channel.send(embed=embed)
                     else:
                         await message.channel.send(self.invalid_user.format(user_id=user_id, usage=self.usage))
                 else:
@@ -163,8 +179,7 @@ class WarncCommand(Command):
                             embed = await embed_builder.get_embed()
                             log_channel_id = int(self.storage.settings["guilds"][guild_id]["log_channel_id"])
                             log_channel = message.guild.get_channel(log_channel_id)
-                            if log_channel is not None:
-                                await log_channel.send(embed=embed)
+                            
                         else:
                             await message.channel.send(f"No warnings found for user: `{user.name}`")
                     else:

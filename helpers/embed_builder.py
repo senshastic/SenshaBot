@@ -19,7 +19,7 @@ class EmbedBuilder:
             "mute": discord.Embed(
                 title="Muted user", description="A user was Muted", color=0xFF8000
             ),
-            "tempmute": discord.Embed(
+            "timeout": discord.Embed(
                 title="Temp Muted user",
                 description="A user was Temp Muted",
                 color=0xFF8000,

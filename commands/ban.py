@@ -8,6 +8,7 @@ import discord
 
 from bot import ModerationBot
 from commands.base import Command
+from commands.dm import DMCommand
 from helpers.embed_builder import EmbedBuilder
 from helpers.misc_functions import (author_is_mod, is_integer,
                                     is_valid_duration, parse_duration)
@@ -74,6 +75,9 @@ class TempBanCommand(Command):
         self.not_enough_arguments = "You must provide a user to ban. {usage}"
         self.not_a_user_id = "{user_id} is not a valid user ID. {usage}"
 
+        # Initialize the DMCommand class
+        self.dm_command = DMCommand(client_instance)
+
     async def execute(self, message: discord.Message, **kwargs) -> None:
         command = kwargs.get("args")
         if await author_is_mod(message.author, self.storage):
@@ -94,6 +98,13 @@ class TempBanCommand(Command):
                         temp = [item for item in command if command.index(item) > 1]
                         reason = " ".join(temp)
                         if user is not None:
+
+                            # Send DM to the banned user
+                            dm_subject = f"You have been banned from the {message.guild.name} server"
+                            dm_message = reason
+                            dm_args = [str(user_id), f"**{dm_subject}**", dm_message]
+                            await self.dm_command.execute(message, args=dm_args)
+
                             # Add the banned role and store them in guilds banned users list. We use -1 as the duration to state that it lasts forever.
                             await message.guild.ban(user, reason=reason)
                             self.storage.settings["guilds"][guild_id]["banned_users"][str(user_id)] = {}
@@ -102,23 +113,14 @@ class TempBanCommand(Command):
                             self.storage.settings["guilds"][guild_id]["banned_users"][str(user_id)]["normal_duration"] = command[1]
                             await self.storage.write_file_to_disk()
                             # Message the channel
-                            await message.channel.send(f"**Temporarily banned user:** `{user.name}` **for:** `{command[1]}`**. Reason:** `{reason}`")
-                            
-                            # Build the embed and message it to the log channel
-                            embed_builder = EmbedBuilder(event="tempban")
-                            await embed_builder.add_field(name="**Executor**", value=f"`{message.author.name}`")
-                            await embed_builder.add_field(name="**Temp Banned user**", value=f"`{user.name}`")
-                            await embed_builder.add_field(name="**Reason**", value=f"`{reason}`")
-                            await embed_builder.add_field(name="**Duration**", value=f"`{command[1]}`")
-                            embed = await embed_builder.get_embed()
+                            await message.channel.send(f"**Banned user:** `{user.name}`. Reason:** `{reason}`.**")
+
                             log_channel_id = int(self.storage.settings["guilds"][guild_id]["log_channel_id"])
                             log_channel = message.guild.get_channel(log_channel_id)
-                            if log_channel is not None:
-                                await log_channel.send(embed=embed)
                         else:
                             await message.channel.send(self.invalid_user.format(user_id=user_id, usage=self.usage))
                     else:
-                        await message.channel.send(self.invalid_user.format(user_id=user_id, usage=self.usage))
+                        await message.channel.send(self.invalid_duration.format(user_id=user_id, usage=self.usage))
                 else:
                     await message.channel.send(self.not_a_user_id.format(user_id=command[0], usage=self.usage))
             else:

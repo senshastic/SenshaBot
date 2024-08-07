@@ -80,7 +80,7 @@ async def check_punishments(client):
                 if user is None:
                     continue
 
-                embed_builder = EmbedBuilder(event="warnc")
+                embed_builder = EmbedBuilder(event="Warn expired")
                 await embed_builder.add_field(name="**Executor**", value="`System`")
                 await embed_builder.add_field(name="**Warn cleared for user**", value=f"`{user.name}`")
                 await embed_builder.add_field(name="**Warn index**", value=f"`{warn_index}`")

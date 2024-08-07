@@ -68,7 +68,7 @@ There is a vague plan to update to use the new interaction based commands which 
 - `!mute <user ID> [reason]`
   - Permanently mutes the user. Must be unmuted manually.
 
-- `!tempmute <user ID> <duration> [reason]`
+- `!timeout <user ID> <duration> [reason]`
   - Temporarily mutes the user.
 
 - `!unmute <user ID>`

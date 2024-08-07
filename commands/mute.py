@@ -8,6 +8,7 @@ import discord
 
 from bot import ModerationBot
 from commands.base import Command
+from commands.dm import DMCommand
 from datetime import timedelta
 from helpers.embed_builder import EmbedBuilder
 from helpers.misc_functions import (
@@ -185,18 +186,19 @@ class MuteCommand(Command):
             )
 
 
-class TempMuteCommand(Command):
+class timeoutCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
-        self.cmd = "tempmute"
+        self.cmd = "timeout"
         self.client = client_instance
         self.storage = client_instance.storage
-        self.usage = (
-            f"Usage: {self.client.prefix}tempmute <user id> <duration> [reason]"
-        )
-        self.invalid_user = "There is no user with the userID: {user_id}. {usage}"
+        self.usage = f"Usage: {self.client.prefix}timeout <user id> <duration> [reason]"
+        self.invalid_user = "There is no user with the user ID: {user_id}. {usage}"
         self.invalid_duration = "The provided format is invalid. The duration must be a string that looks like: 1w3d5h30m20s or a positive number in seconds. {usage}"
-        self.not_enough_arguments = "You must provide a user to temp mute. {usage}"
+        self.not_enough_arguments = "You must provide a user to timeout. {usage}"
         self.not_a_user_id = "{user_id} is not a valid user ID. {usage}"
+
+        # Initialize the DMCommand class
+        self.dm_command = DMCommand(client_instance)
 
     async def execute(self, message: discord.Message, **kwargs) -> None:
         command = kwargs.get("args")
@@ -210,14 +212,10 @@ class TempMuteCommand(Command):
                     if is_valid_duration(duration):
                         guild_id = str(message.guild.id)
                         mute_duration = int(time.time()) + duration
-                        muted_role_id = int(
-                            self.storage.settings["guilds"][guild_id]["muted_role_id"]
-                        )
                         try:
                             user = await message.guild.fetch_member(user_id)
                         except discord.errors.NotFound or discord.errors.HTTPException:
                             user = None
-                        muted_role = message.guild.get_role(muted_role_id)
                         if len(command) >= 3:
                             # Collects everything after the first two items in the command and uses it as a reason.
                             temp = [item for item in command if command.index(item) > 1]
@@ -225,12 +223,11 @@ class TempMuteCommand(Command):
                         else:
                             reason = f"Timeouted by {message.author.name}"
                         if user is not None:
-                            # Add the timeout and store users in guilds muted users list.
+                            # Apply the timeout and store users in guilds timeout list.
                             await user.timeout(
                                 timedelta(seconds=duration),
-                                reason=f"Muted by {message.author.name}",
+                                reason=reason,
                             )
-                            # await user.add_roles(muted_role, reason=f"Muted by {message.author.name}")
                             self.storage.settings["guilds"][guild_id]["muted_users"][
                                 str(user_id)
                             ] = {}
@@ -244,34 +241,25 @@ class TempMuteCommand(Command):
                                 str(user_id)
                             ]["normal_duration"] = command[1]
                             await self.storage.write_file_to_disk()
+
+                            # Send DM to the timeouted user
+                            dm_subject = f"You have been timeouted from the {message.guild.name} server for {command[1]}"
+                            dm_message = reason
+                            dm_args = [str(user_id), f"**{dm_subject}**", dm_message]
+                            await self.dm_command.execute(message, args=dm_args)
+
                             # Message the channel
                             await message.channel.send(
-                                f"**Timeouted user:** `{user.name}` **for:** `{command[1]}`**. Reason:** `{reason}`"
+                                f"**Timeouted user:** `{user.name}` **for:** `{command[1]}` **. Reason:** `{reason}`**.**"
                             )
 
-                            # Build the embed and message it to the log channel
-                            embed_builder = EmbedBuilder(event="tempmute")
-                            await embed_builder.add_field(
-                                name="**Executor**", value=f"`{message.author.name}`"
-                            )
-                            await embed_builder.add_field(
-                                name="**Muted user**", value=f"`{user.name}`"
-                            )
-                            await embed_builder.add_field(
-                                name="**Reason**", value=f"`{reason}`"
-                            )
-                            await embed_builder.add_field(
-                                name="**Duration**", value=f"`{command[1]}`"
-                            )
-                            embed = await embed_builder.get_embed()
                             log_channel_id = int(
                                 self.storage.settings["guilds"][guild_id][
                                     "log_channel_id"
                                 ]
                             )
                             log_channel = message.guild.get_channel(log_channel_id)
-                            if log_channel is not None:
-                                await log_channel.send(embed=embed)
+
                         else:
                             await message.channel.send(
                                 self.invalid_user.format(
