@@ -13,6 +13,7 @@ class EmbedBuilder:
             "tempmute": discord.Embed(title="Temp Muted user", description="A user was Temp Muted", color=0xff8000),
             "unmute": discord.Embed(title="Unmuted user", description="A user was Unmuted", color=0x00ff00),
             "warn": discord.Embed(title="Warned user", description="A user was Warned", color=0xff0000),
+            "warnlog": discord.Embed(title="Warnlog ran for user", description="A warnlog was ran", color=0xff0000),
             "tempban": discord.Embed(title="Temp Banned user", description="A user was Temp Banned", color=0xff0000),
             "ban": discord.Embed(title="Banned user", description="A user was Banned", color=0xff0000),
             "unban": discord.Embed(title="Unbanned user", description="A user was Unbanned", color=0x00ff00),
