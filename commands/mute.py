@@ -18,6 +18,10 @@ from helpers.misc_functions import (
     parse_duration,
 )
 
+
+from helpers.userid_parser import parse_userid
+
+
 """
 class UnMuteCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
@@ -204,42 +208,38 @@ class timeoutCommand(Command):
         command = kwargs.get("args")
         if await author_is_mod(message.author, self.storage):
             if len(command) >= 2:
-                if re.match(r"<@\d{18}>", command[0]):
-                    command[0] = command[0][2:-1]
-                if is_integer(command[0]):
-                    user_id = int(command[0])
+                try:
+                    # Use the parser to extract the user ID
+                    user_id = parse_userid(command[0])
                     duration = int(parse_duration(command[1]))
+
                     if is_valid_duration(duration):
                         guild_id = str(message.guild.id)
                         mute_duration = int(time.time()) + duration
                         try:
                             user = await message.guild.fetch_member(user_id)
-                        except discord.errors.NotFound or discord.errors.HTTPException:
+                        except discord.errors.NotFound:
                             user = None
+
+                        # Handle reason for timeout
                         if len(command) >= 3:
-                            # Collects everything after the first two items in the command and uses it as a reason.
-                            temp = [item for item in command if command.index(item) > 1]
-                            reason = " ".join(temp)
+                            reason = " ".join(command[2:])
                         else:
                             reason = f"Timeouted by {message.author.name}"
+
                         if user is not None:
-                            # Apply the timeout and store users in guilds timeout list.
+                            # Apply the timeout and store users in guilds timeout list
                             await user.timeout(
                                 timedelta(seconds=duration),
                                 reason=reason,
                             )
                             self.storage.settings["guilds"][guild_id]["muted_users"][
                                 str(user_id)
-                            ] = {}
-                            self.storage.settings["guilds"][guild_id]["muted_users"][
-                                str(user_id)
-                            ]["duration"] = mute_duration
-                            self.storage.settings["guilds"][guild_id]["muted_users"][
-                                str(user_id)
-                            ]["reason"] = reason
-                            self.storage.settings["guilds"][guild_id]["muted_users"][
-                                str(user_id)
-                            ]["normal_duration"] = command[1]
+                            ] = {
+                                "duration": mute_duration,
+                                "reason": reason,
+                                "normal_duration": command[1],
+                            }
                             await self.storage.write_file_to_disk()
 
                             # Send DM to the timeouted user
@@ -253,37 +253,26 @@ class timeoutCommand(Command):
                                 f"**Timeouted user:** `{user.name}` **for:** `{command[1]}` **. Reason:** `{reason}`**.**"
                             )
 
+                            # Log the timeout to the log channel
                             log_channel_id = int(
-                                self.storage.settings["guilds"][guild_id][
-                                    "log_channel_id"
-                                ]
+                                self.storage.settings["guilds"][guild_id]["log_channel_id"]
                             )
                             log_channel = message.guild.get_channel(log_channel_id)
+                            if log_channel:
+                                await log_channel.send(f"Timeout applied to {user.name} for {command[1]}.")
 
                         else:
-                            await message.channel.send(
-                                self.invalid_user.format(
-                                    user_id=user_id, usage=self.usage
-                                )
-                            )
+                            await message.channel.send(self.invalid_user.format(user_id=user_id, usage=self.usage))
                     else:
-                        await message.channel.send(
-                            self.invalid_duration.format(
-                                user_id=user_id, usage=self.usage
-                            )
-                        )
-                else:
-                    await message.channel.send(
-                        self.not_a_user_id.format(user_id=command[0], usage=self.usage)
-                    )
+                        await message.channel.send(self.invalid_duration.format(usage=self.usage))
+
+                except ValueError as e:
+                    # Handle invalid user ID or mention
+                    await message.channel.send(str(e))
             else:
-                await message.channel.send(
-                    self.not_enough_arguments.format(usage=self.usage)
-                )
+                await message.channel.send(self.not_enough_arguments.format(usage=self.usage))
         else:
-            await message.channel.send(
-                "**You must be a moderator to use this command.**"
-            )
+            await message.channel.send("**You must be a moderator to use this command.**")
 
 
 # Collects a list of classes in the file

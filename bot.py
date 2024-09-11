@@ -3,6 +3,7 @@ import os
 import discord
 
 from storage_management import StorageManagement
+from helpers.emoji_parser import parse_emotes
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 

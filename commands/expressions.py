@@ -29,6 +29,7 @@ import re
 
 import uuid
 
+from helpers.emoji_parser import parse_emotes
 
 class ExasCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
@@ -46,7 +47,11 @@ class ExasCommand(Command):
                 if cmd_name.startswith(self.client.prefix):
                     cmd_name = cmd_name[len(self.client.prefix):]  # Remove the prefix
 
-                response = " ".join(command[1:])  # The rest is the response message
+                # Rebuild the original message content to include newlines
+                response = message.content.split(None, 2)[-1]  # Get everything after the command name
+
+                # Parse the response to handle both custom emotes and bot-specific emotes
+                response = parse_emotes(response, self.client)
 
                 guild_id = str(message.guild.id)
                 expressions_file = "expressions.json"  # Path to your expressions.json
@@ -91,6 +96,7 @@ class ExasCommand(Command):
                 await message.channel.send(self.usage)
         else:
             await message.channel.send("**You must be a moderator to use this command.**")
+
 
 
 class ExaDeleteCommand(Command):
@@ -155,7 +161,10 @@ class ExaModifyCommand(Command):
         if await author_is_mod(message.author, self.storage):  # Only mods can modify commands
             if len(command) >= 2 and command[0].isdigit():
                 command_id = int(command[0])  # Get the ID of the command to modify
-                new_response = " ".join(command[1:])  # The new response message
+
+                # Preserve newlines by taking the entire message content after the command ID
+                new_response = message.content.split(None, 2)[-1]
+
                 guild_id = str(message.guild.id)
                 expressions_file = "expressions.json"
 
@@ -192,7 +201,6 @@ class ExaModifyCommand(Command):
                 await message.channel.send(self.usage)
         else:
             await message.channel.send("**You must be a moderator to use this command.**")
-
 
 
 class ExaListCommand(Command):
@@ -240,7 +248,7 @@ class ExaListCommand(Command):
                     super().__init__(timeout=60)
 
                 @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary, disabled=True)
-                async def previous_button(self, button: Button, interaction: discord.Interaction):
+                async def previous_button(self, interaction: discord.Interaction, button: Button):
                     nonlocal current_page
                     if current_page > 0:
                         current_page -= 1
@@ -251,7 +259,7 @@ class ExaListCommand(Command):
                         await interaction.response.edit_message(embed=embed, view=self)
 
                 @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary, disabled=(len(pages) <= 1))
-                async def next_button(self, button: Button, interaction: discord.Interaction):
+                async def next_button(self, interaction: discord.Interaction, button: Button):
                     nonlocal current_page
                     if current_page < len(pages) - 1:
                         current_page += 1

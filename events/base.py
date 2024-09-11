@@ -17,3 +17,5 @@ class EventHandler:
 
     async def handle(self, *args, **kwargs) -> None:
         pass
+
+

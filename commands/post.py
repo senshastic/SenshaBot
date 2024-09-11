@@ -16,6 +16,8 @@ from helpers.embed_builder import EmbedBuilder
 from helpers.misc_functions import (author_is_mod, is_integer,
                                     is_valid_duration, parse_duration)
 
+from helpers.userid_parser import parse_userid
+
 
 
 class PostCommand(Command):
@@ -39,8 +41,11 @@ class PostCommand(Command):
                     channel_id = int(command[0])
                     channel = self.client.get_channel(channel_id)
 
-                    # Extract message
+                    # Extract message content
                     message_content = " ".join(command[1:])
+
+                    # Parse potential mentions in the message
+                    message_content = await self.parse_mentions(message_content, message.guild)
 
                     if channel:
                         try:
@@ -49,19 +54,11 @@ class PostCommand(Command):
                             
                             # Send the message with allowed mentions
                             await channel.send(message_content, allowed_mentions=allowed_mentions)
-                            await message.channel.send(f"Message sent to {channel.mention}")
                             print(f"Message content to be sent: {message_content}")
 
-                            # Logging the post command
-                            embed_builder = EmbedBuilder(event="Message posted")
-                            await embed_builder.add_field(name="**Channel**", value=f"`{channel.name}`")
-                            await embed_builder.add_field(name="**Message**", value=f"`{message_content}`")
-                            log_embed = await embed_builder.get_embed()
+                            # React with a checkmark to the command message
+                            await message.add_reaction("✅")
 
-                            log_channel_id = int(self.storage.settings["guilds"][str(message.guild.id)]["log_channel_id"])
-                            log_channel = message.guild.get_channel(log_channel_id)
-                            if log_channel:
-                                await log_channel.send(embed=log_embed)
                         except discord.errors.HTTPException as e:
                             await message.channel.send(f"Failed to send message: {str(e)}")
                     else:
@@ -72,6 +69,26 @@ class PostCommand(Command):
                 await message.channel.send(self.not_enough_arguments.format(usage=self.usage))
         else:
             await message.channel.send("**You must be a moderator to use this command.**")
+
+    async def parse_mentions(self, message_content: str, guild: discord.Guild) -> str:
+        """Parse and replace user mentions in the message content with actual mentions."""
+        words = message_content.split()
+        parsed_message = []
+        for word in words:
+            try:
+                # Attempt to parse each word as a user mention or raw user ID
+                user_id = parse_userid(word)
+                user = guild.get_member(user_id)
+                if user:
+                    parsed_message.append(user.mention)
+                else:
+                    parsed_message.append(word)  # If not a valid mention, leave as is
+            except ValueError:
+                parsed_message.append(word)  # If parsing fails, leave as is
+
+        return " ".join(parsed_message)
+
+
 
 
 # Collects a list of classes in the file

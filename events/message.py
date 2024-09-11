@@ -88,7 +88,10 @@ class MessageEvent(EventHandler):
                     await message.channel.send(f"**Unknown command:** `{cmd}`")
 
 
-# dep
+
+
+
+# deprecated log function
 """
 class MessageDeleteEvent(EventHandler):
     def __init__(self, client_instance: ModerationBot) -> None:
