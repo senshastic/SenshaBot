@@ -54,7 +54,7 @@ class TemplateCommand(Command):
         self.client = client_instance
 
     async def execute(self, message: discord.Message, **kwargs) -> None:
-        """ The code here that will run when the command is recieved """
+        """ The code here that will run when the command is received """
         # The command that was run
         cmd = kwargs.get("command")
         # Example of getting the command arguments (everything that follows "!cmd")

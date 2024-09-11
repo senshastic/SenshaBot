@@ -117,10 +117,18 @@ async def author_is_mod(author: Member, storage: StorageManagement) -> bool:
     """
     if author_is_admin(author):
         return True
+    
     guild_id = str(author.guild.id)
     mod_roles = storage.settings["guilds"][guild_id].get("mod_roles")
+    
     if mod_roles is None:
         storage.settings["guilds"][guild_id]["mod_roles"] = []
         await storage.write_file_to_disk()
         mod_roles = storage.settings["guilds"][guild_id].get("mod_roles")
-    return set(mod_roles) & set(author.roles)
+
+    # Extract the role IDs from the author's roles
+    author_role_ids = [role.id for role in author.roles]
+    
+    # Check if any of the author's role IDs are in the mod_roles list
+    return any(role_id in mod_roles for role_id in author_role_ids)
+

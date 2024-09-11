@@ -9,6 +9,7 @@ import discord
 from bot import ModerationBot
 from commands.base import Command
 from datetime import datetime
+from datetime import timedelta
 from commands.mute import timeoutCommand
 from commands.ban import TempBanCommand
 from commands.dm import DMCommand
@@ -17,19 +18,14 @@ from helpers.misc_functions import (author_is_mod, is_integer,
                                     is_valid_duration, parse_duration)
 
 
-import discord
-import re
-import time
-from datetime import timedelta
-
 class WarnCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
         self.cmd = "warn"
         self.client = client_instance
         self.storage = client_instance.storage
-        self.usage = f"Usage: {self.client.prefix}warn <user id> [reason]"
+        self.usage = f"Usage: {self.client.prefix}warn [weight] <user id> <reason>"
         self.invalid_user = "There is no user with the user ID: {user_id}. {usage}"
-        self.not_enough_arguments = "You must provide a user to warn. {usage}"
+        self.not_enough_arguments = "You must provide a user to warn and a reason. {usage}"
         self.not_a_user_id = "{user_id} is not a valid user ID. {usage}"
 
         # Initialize the DMCommand class
@@ -38,25 +34,35 @@ class WarnCommand(Command):
     async def execute(self, message: discord.Message, **kwargs) -> None:
         command = kwargs.get("args")
         if await author_is_mod(message.author, self.storage):
-            if len(command) >= 1:
-                if re.match(r'<@\d{18}>', command[0]):
-                    command[0] = command[0][2:-1]
+            if len(command) >= 2:
+                # Determine if the first argument is a weight
                 if is_integer(command[0]):
-                    if not ((len(command) >= 1) & is_integer(command[1])):
-                        command = [command[0], 1] + command[1:]
-                    guild_id = str(message.guild.id)
-                    user_id = int(command[0])
+                    weight = int(command[0])
+                    user_id = command[1]
+                    reason = " ".join(command[2:])
+                else:
+                    weight = 1  # Default weight if not provided
+                    user_id = command[0]
+                    reason = " ".join(command[1:])
+
+                # Clean user ID
+                if re.match(r'<@\d{18}>', user_id):
+                    user_id = user_id[2:-1]
+                if re.match(r'&lt;@\d{18}&gt;', user_id):
+                    user_id = user_id[5:-4]
+
+                if is_integer(user_id):
+                    user_id = int(user_id)
                     try:
                         user = await message.guild.fetch_member(user_id)
                     except discord.errors.NotFound or discord.errors.HTTPException:
                         user = None
-                    weight = int(command[1])
-                    if len(command) >= 3:
-                        temp = [item for item in command if command.index(item) > 1]
-                        reason = " ".join(temp)
-                    else:
+
+                    if len(reason) == 0:
                         reason = "Warned"
+
                     if user is not None:
+                        guild_id = str(message.guild.id)
                         warned_users = self.storage.settings["guilds"][guild_id].get("warned_users", {})
                         if str(user_id) not in warned_users:
                             warned_users[str(user_id)] = {
@@ -82,7 +88,7 @@ class WarnCommand(Command):
 
                         active_warns = sum(warned_users[str(user_id)]["active_weight"])
 
-                        await message.channel.send(f"**Warned user:** `{user.name}`**. Reason:** `{reason}`**.** \n *Number of active warns: `{active_warns}`.*")
+                        await message.channel.send(f"**Warned user:** {user.name}**. Reason:** {reason}**.** \n *Number of active warns: {active_warns}.*")
                         
                         # Determine the DM subject based on the weight
                         if weight > 0:
@@ -95,8 +101,6 @@ class WarnCommand(Command):
                         await self.dm_command.execute(message, args=dm_args)
 
                         # Takes punishment action 
-                        
-
                         if active_warns == 2 and weight != 0:
                             temp_mute_command = timeoutCommand(self.client)
                             await temp_mute_command.execute(message, args=[str(user_id), "24h", "Accrued two warnings"])
@@ -109,11 +113,12 @@ class WarnCommand(Command):
                     else:
                         await message.channel.send(self.invalid_user.format(user_id=user_id, usage=self.usage))
                 else:
-                    await message.channel.send(self.not_a_user_id.format(user_id=command[0], usage=self.usage))
+                    await message.channel.send(self.not_a_user_id.format(user_id=user_id, usage=self.usage))
             else:
                 await message.channel.send(self.not_enough_arguments.format(usage=self.usage))
         else:
             await message.channel.send("**You must be a moderator to use this command.**")
+
 
 
 
@@ -134,6 +139,8 @@ class WarncCommand(Command):
             if len(command) >= 1:
                 if re.match(r'<@\d{18}>', command[0]):
                     command[0] = command[0][2:-1]
+                if re.match(r'&lt;@\d{18}&gt;', command[0]):
+                    command[0] = command[0][5:-4]
                 if is_integer(command[0]):
                     guild_id = str(message.guild.id)
                     user_id = int(command[0])
@@ -143,30 +150,36 @@ class WarncCommand(Command):
                         user = None
 
                     if user is not None:
-                        if str(user_id) in self.storage.settings["guilds"][guild_id]["warned_users"]:
-                            user_warnings = self.storage.settings["guilds"][guild_id]["warned_users"][str(user_id)]
+                        warned_users = self.storage.settings["guilds"][guild_id].get("warned_users", {})
+                        if str(user_id) in warned_users:
+                            user_warnings = warned_users[str(user_id)]
                             
                             if "clearer" not in user_warnings:
                                 user_warnings["clearer"] = [None] * len(user_warnings["active_weight"])
                             
                             if len(command) >= 2 and is_integer(command[1]):
                                 warn_index = int(command[1])
-                                if 0 <= warn_index < len(user_warnings["active_weight"]):
-                                    if user_warnings["active_weight"][warn_index] > 0:
-                                        user_warnings["active_weight"][warn_index] = 0
-                                        user_warnings["clearer"][warn_index] = f"{message.author.name}"
-                                        await message.channel.send(f"**Warn** `{warn_index}` **cleared for user:** `{user.name}`**")
+                                # Adjust for user input index (1-based) to list index (0-based)
+                                warn_index_to_clear = warn_index - 1
+                                
+                                if 0 <= warn_index_to_clear < len(user_warnings["active_weight"]):
+                                    if user_warnings["active_weight"][warn_index_to_clear] > 0:
+                                        user_warnings["active_weight"][warn_index_to_clear] = 0
+                                        user_warnings["clearer"][warn_index_to_clear] = f"{message.author.name}"
+                                        await message.channel.send(f"**Warn** `{warn_index}` **cleared for user:** `{user.name}`")
                                     else:
                                         await message.channel.send(f"Warn `{warn_index}` is already cleared for user: `{user.name}`")
                                 else:
                                     await message.channel.send(f"Invalid warn index: {warn_index}")
                             else:
+                                # Clear all active warns
                                 for i in range(len(user_warnings["active_weight"])):
                                     if user_warnings["active_weight"][i] > 0:
                                         user_warnings["active_weight"][i] = 0
                                         user_warnings["clearer"][i] = f"{message.author.name}"
                                 await message.channel.send(f"**Cleared all warns for user:** `{user.name}`")
 
+                            self.storage.settings["guilds"][guild_id]["warned_users"] = warned_users
                             await self.storage.write_file_to_disk()
                             
                             embed_builder = EmbedBuilder(event="warnc")
@@ -179,7 +192,8 @@ class WarncCommand(Command):
                             embed = await embed_builder.get_embed()
                             log_channel_id = int(self.storage.settings["guilds"][guild_id]["log_channel_id"])
                             log_channel = message.guild.get_channel(log_channel_id)
-                            
+                            if log_channel:
+                                await log_channel.send(embed=embed)
                         else:
                             await message.channel.send(f"No warnings found for user: `{user.name}`")
                     else:
@@ -192,13 +206,14 @@ class WarncCommand(Command):
             await message.channel.send("**You must be a moderator to use this command.**")
 
 
+
 class WarnLogCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
         self.cmd = "warnlog"
         self.client = client_instance
         self.storage = client_instance.storage
         self.usage = f"Usage: {self.client.prefix}warnlog <user id>"
-        self.invalid_user = "There is no user with the userID: {user_id}. {usage}"
+        self.invalid_user = "There is no user with the user ID: {user_id}. {usage}"
         self.not_enough_arguments = "You must provide a user to view warn logs. {usage}"
         self.not_a_user_id = "{user_id} is not a valid user ID. {usage}"
 
@@ -206,10 +221,15 @@ class WarnLogCommand(Command):
         command = kwargs.get("args")
         if await author_is_mod(message.author, self.storage):
             if len(command) >= 1:
-                if re.match(r'<@\d{18}>', command[0]):
-                    command[0] = command[0][2:-1]
-                if is_integer(command[0]):
-                    user_id = int(command[0])
+                # Extract and clean the user ID
+                user_id_str = command[0]
+                if re.match(r'<@\d{18}>', user_id_str):
+                    user_id_str = user_id_str[2:-1]
+                elif re.match(r'&lt;@\d{18}&gt;', user_id_str):
+                    user_id_str = user_id_str[5:-4]
+                
+                if is_integer(user_id_str):
+                    user_id = int(user_id_str)
                     guild_id = str(message.guild.id)
 
                     try:
@@ -235,28 +255,40 @@ class WarnLogCommand(Command):
                                 value=f"*{total_weight}*",
                                 inline=False
                             )
-                            for index, (weight, active_weight, reason, timestamp, executor, clearer) in enumerate(zip(user_warnings["weight"], user_warnings["active_weight"], user_warnings["reason"], user_warnings["timestamp"], user_warnings["executor"], user_warnings["clearer"]), 1):
+                            
+                            # Iterate through each warning
+                            for index, (weight, active_weight, reason, timestamp, executor, clearer, duration) in enumerate(
+                                zip(user_warnings["weight"], user_warnings["active_weight"], 
+                                    user_warnings["reason"], user_warnings["timestamp"], 
+                                    user_warnings["executor"], user_warnings["clearer"],
+                                    user_warnings["duration"]), 1):
+                                
+                                # Calculate expiration time
+                                expiration_time = datetime.fromtimestamp(timestamp) + timedelta(seconds=duration)
+                                expiration_str = expiration_time.strftime('%d-%m-%Y %H:%M')
+
                                 if active_weight == 0:
                                     if not clearer:
                                         clearer = "expiry"
                                     field_name = f"#{index} ~~**On:** {datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')} **by** {executor}~~ **cleared by** {clearer}"
-                                    field_value = f"*Weight: {weight}*\n{reason}\n"
+                                    field_value = f"*Weight: {weight}*\n{reason}\n**Expires on:** {expiration_str}"
                                 else:
                                     field_name = f"#{index} **On:** {datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')} **by** {executor}"
-                                    field_value = f"*Weight: {weight}*\n{reason}\n"
+                                    field_value = f"*Weight: {weight}*\n{reason}\n**Expires on:** {expiration_str}"
                                 
                                 embed.add_field(
                                     name=field_name,
                                     value=field_value,
                                     inline=False
                                 )
+                            
                             await message.channel.send(embed=embed)
                         else:
                             await message.channel.send(f"**{user.name}** has no warnings.")
                     else:
                         await message.channel.send(self.invalid_user.format(user_id=user_id, usage=self.usage))
                 else:
-                    await message.channel.send(self.not_a_user_id.format(user_id=command[0], usage=self.usage))
+                    await message.channel.send(self.not_a_user_id.format(user_id=user_id_str, usage=self.usage))
             else:
                 await message.channel.send(self.not_enough_arguments.format(usage=self.usage))
         else:

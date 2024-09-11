@@ -32,6 +32,8 @@ class DMCommand(Command):
                 # Extract user ID
                 if re.match(r'<@\d{18}>', command[0]):
                     command[0] = command[0][2:-1]
+                if re.match(r'&lt;@\d{18}&gt;', command[0]):
+                      command[0] = command[0][5:-4]
                 if is_integer(command[0]):
                     user_id = int(command[0])
                     guild_id = str(message.guild.name)
@@ -57,15 +59,8 @@ class DMCommand(Command):
                         try:
                             await user.send(embed=embed)
 
-                            # Logging the DM command
-                            embed_builder = EmbedBuilder(event="Private message was sent")
-                            await embed_builder.add_field(name="**DM'd user**", value=f"`{user.name}`")
-                            log_embed = await embed_builder.get_embed()
-
-                            log_channel_id = int(self.storage.settings["guilds"][str(message.guild.id)]["log_channel_id"])
-                            log_channel = message.guild.get_channel(log_channel_id)
-                            if log_channel is not None:
-                                await log_channel.send(embed=log_embed)
+                            # React with a checkmark to the original message
+                            await message.add_reaction("✅")
                         except discord.errors.HTTPException as e:
                             await message.channel.send(f"Failed to send DM: {str(e)}")
                     else:

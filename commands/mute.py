@@ -18,7 +18,7 @@ from helpers.misc_functions import (
     parse_duration,
 )
 
-
+"""
 class UnMuteCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
         self.cmd = "unmute"
@@ -184,7 +184,7 @@ class MuteCommand(Command):
             await message.channel.send(
                 "**You must be a moderator to use this command.**"
             )
-
+"""
 
 class timeoutCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:

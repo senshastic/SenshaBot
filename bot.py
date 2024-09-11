@@ -106,14 +106,24 @@ class ModerationBot(discord.Client):
 
     async def check_for_muted_role(self, guild: discord.Guild) -> None:
         guild_id = str(guild.id)
-        # Get the muted role ID from disk and try to get it from discord
-        muted_role_id = int(self.storage.settings["guilds"][guild_id]["muted_role_id"])
-        role_test = discord.utils.get(guild.roles, id=muted_role_id)
+
+        # Ensure that the guild entry exists in the settings
+        if guild_id not in self.storage.settings["guilds"]:
+            self.storage.settings["guilds"][guild_id] = {}
+
+        # Check if the muted_role_id exists in the settings
+        if "muted_role_id" in self.storage.settings["guilds"][guild_id]:
+            muted_role_id = int(self.storage.settings["guilds"][guild_id]["muted_role_id"])
+            role_test = discord.utils.get(guild.roles, id=muted_role_id)
+        else:
+            role_test = None
+
+        # If the role doesn't exist or the role_id is not found, create the role
         if role_test is None:
-            # The role doesn't exist so we create it
             muted_role = await guild.create_role(name="muted")
             self.storage.settings["guilds"][guild_id]["muted_role_id"] = muted_role.id
             await self.storage.write_file_to_disk()
+
 
     async def add_muted_role_to_channels(self, guild: discord.Guild) -> None:
         guild_id = str(guild.id)
@@ -146,7 +156,7 @@ class ModerationBot(discord.Client):
         )
         log_channel = discord.utils.get(guild.text_channels, id=log_channel_id)
         overwrites = {guild.default_role: self.default_permissions}
-        if log_channel is None:
+        if log_channel in [None, ""]:
             # The log channel doesn't exist so we create it
             log_channel = await guild.create_text_channel(
                 name="moderation", overwrites=overwrites

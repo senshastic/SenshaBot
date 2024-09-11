@@ -1,5 +1,7 @@
 settings.json
+expressions.json
 token.txt
 .venv/*
 **__pycache__/
 *.code-workspace
+.DS_Store

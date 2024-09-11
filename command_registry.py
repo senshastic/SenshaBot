@@ -8,7 +8,7 @@ from commands.base import Command
 
 
 class CommandRegistry:
-    """Command registry class that handles dyanmic class loading and getting info for a command"""
+    """Command registry class that handles dynamic class loading and getting info for a command"""
 
     commands = {}
     py_files = []
