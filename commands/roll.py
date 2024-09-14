@@ -24,36 +24,35 @@ from helpers.userid_parser import parse_userid
 from helpers.emoji_parser import parse_emotes
 
 
-import random
-
 class RollCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
         self.cmd = "roll"
         self.client = client_instance
         self.storage = client_instance.storage
         self.usage = f"Usage: {self.client.prefix}roll"
+        self.roll_counter = 0  # Counter to track the number of rolls
 
     def get_custom_emoji(self, name):
         """Fetch the bot's custom emoji by name."""
         for emoji in self.client.emojis:
             if emoji.name == name:
-                return str(emoji)  # Return the emoji object as a string
+                return str(emoji) 
         return f":{name}:"  # Fallback in case the emoji is not found
 
-    def roll_d20_normal(self):
-        """Rolls a d20 with a normal distribution."""
-        mean = 10.5  
-        std_dev = 3   
-
-        # Generate a normally distributed roll
-        roll = random.gauss(mean, std_dev)
-
-        # Round the result and clamp it between 1 and 20
-        roll = max(1, min(20, round(roll)))
-        return roll
+    def get_forced_roll(self):
+        """Force a roll of 1 or 20 based on a condition."""
+        # Alternate between forcing 1 or 20
+        return 1 if self.roll_counter % 2 == 0 else 20
 
     async def execute(self, message: discord.Message, **kwargs) -> None:
-        roll = self.roll_d20_normal()  # Roll a d20 with normal distribution
+        self.roll_counter += 1  # Increment the roll counter
+
+        # Every 10th roll, force a 1 or 20
+        if self.roll_counter % 10 == 0:
+            roll = self.get_forced_roll()
+        else:
+            roll = random.randint(1, 20)  # Normal random 
+
         await message.channel.send(f"You rolled a {roll}!")
 
         # Get the emotes
@@ -64,7 +63,7 @@ class RollCommand(Command):
         crown = self.get_custom_emoji("crown")
         pausecham = self.get_custom_emoji("pausecham")
 
-        # Handle different outcomes based on the roll
+        # different outcomes based on the roll
         if roll == 1:
             response = f"{HaPoint} you rolled a 1, critical fail!"
         elif 2 <= roll <= 10:
@@ -78,8 +77,6 @@ class RollCommand(Command):
 
         # Send the final response
         await message.channel.send(response)
-
-
 
 # Collects a list of classes in the file
 classes = inspect.getmembers(sys.modules[__name__], lambda member: inspect.isclass(member) and member.__module__ == __name__)

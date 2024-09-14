@@ -7,12 +7,14 @@ import discord
 from bot import ModerationBot
 from helpers.embed_builder import EmbedBuilder
 from events.base import EventHandler
+from helpers.misc_functions import author_is_mod
 
 import json 
 
 class MessageEvent(EventHandler):
     def __init__(self, client_instance: ModerationBot) -> None:
         self.client = client_instance
+        self.storage = client_instance.storage
         self.event = "on_message"
 
     async def handle(self, message: discord.Message, *args, **kwargs) -> None:
@@ -45,7 +47,15 @@ class MessageEvent(EventHandler):
 
             # Check if the command exists in custom expressions
             if guild_id in expressions and cmd in expressions[guild_id]["commands"]:
-                response = expressions[guild_id]["commands"][cmd]["response"]
+                command_data = expressions[guild_id]["commands"][cmd]
+
+                # Check if the command is mod-only and if the user is a mod
+                if command_data.get("mod_only", False):  # Check if mod_only is True
+                    if not await author_is_mod(user, self.storage):
+                        await message.channel.send("**You must be a moderator to use this command.**")
+                        return
+
+                response = command_data["response"]
 
                 # Check if the response contains %target% and if the user provided a mention
                 if "%target%" in response:
@@ -86,7 +96,6 @@ class MessageEvent(EventHandler):
                     )
                 else:
                     await message.channel.send(f"**Unknown command:** `{cmd}`")
-
 
 
 

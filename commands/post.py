@@ -16,9 +16,8 @@ from helpers.embed_builder import EmbedBuilder
 from helpers.misc_functions import (author_is_mod, is_integer,
                                     is_valid_duration, parse_duration)
 
+from helpers.emoji_parser import parse_emotes
 from helpers.userid_parser import parse_userid
-
-
 
 class PostCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
@@ -29,7 +28,7 @@ class PostCommand(Command):
         self.invalid_channel = "There is no channel with the channel ID: {channel_id}. {usage}"
         self.not_enough_arguments = "You must provide a channel and a message to post. {usage}"
         self.not_a_channel_id = "{channel_id} is not a valid channel ID. {usage}"
-        
+
     async def execute(self, message: discord.Message, **kwargs) -> None:
         command = kwargs.get("args", [])
         if await author_is_mod(message.author, self.storage):
@@ -47,11 +46,14 @@ class PostCommand(Command):
                     # Parse potential mentions in the message
                     message_content = await self.parse_mentions(message_content, message.guild)
 
+                    # Parse the message content to replace custom emojis
+                    message_content = parse_emotes(message_content, self.client)
+
                     if channel:
                         try:
                             # Configure allowed mentions to handle @everyone, @here, and user mentions
                             allowed_mentions = discord.AllowedMentions(everyone=True, users=True, roles=True)
-                            
+
                             # Send the message with allowed mentions
                             await channel.send(message_content, allowed_mentions=allowed_mentions)
                             print(f"Message content to be sent: {message_content}")
@@ -87,6 +89,7 @@ class PostCommand(Command):
                 parsed_message.append(word)  # If parsing fails, leave as is
 
         return " ".join(parsed_message)
+
 
 
 

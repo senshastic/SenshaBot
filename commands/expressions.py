@@ -224,7 +224,7 @@ class ExaListCommand(Command):
         # Check if the guild has commands
         if guild_id in expressions and expressions[guild_id]["commands"]:
             commands = expressions[guild_id]["commands"]
-            command_list = [(cmd_name, cmd_data["id"]) for cmd_name, cmd_data in commands.items()]
+            command_list = [(cmd_name, cmd_data["id"], cmd_data.get("mod_only", False)) for cmd_name, cmd_data in commands.items()]
 
             # Divide the command list into pages of 10 commands each
             page_size = 10
@@ -233,8 +233,13 @@ class ExaListCommand(Command):
             # Function to create the embed for a specific page
             def create_embed(page_index):
                 embed = discord.Embed(title=f"Custom Commands (Page {page_index + 1}/{len(pages)})", color=discord.Color.blue())
-                for cmd_name, cmd_id in pages[page_index]:
-                    embed.add_field(name=f"Command `{cmd_name}`", value=f"ID: {cmd_id}", inline=False)
+                for cmd_name, cmd_id, mod_only in pages[page_index]:
+                    mod_only_status = "Yes" if mod_only else "No"
+                    embed.add_field(
+                        name=f"Command `{cmd_name}`",
+                        value=f"ID: {cmd_id}\nMod Only: {mod_only_status}",
+                        inline=False
+                    )
                 embed.set_footer(text=f"Page {page_index + 1} of {len(pages)}")
                 return embed
 
@@ -273,6 +278,57 @@ class ExaListCommand(Command):
             await message.channel.send(embed=embed, view=view)
         else:
             await message.channel.send("No custom commands found for this server.")
+
+
+class ExaModCommand(Command):
+    def __init__(self, client_instance: ModerationBot) -> None:
+        self.cmd = "examod"
+        self.client = client_instance
+        self.storage = client_instance.storage  # Access to the storage system
+        self.usage = f"Usage: {self.client.prefix}examod <command ID>"
+
+    async def execute(self, message: discord.Message, **kwargs) -> None:
+        command = kwargs.get("args")
+        if await author_is_mod(message.author, self.storage):  # Only mods can restrict commands
+            if len(command) == 1 and command[0].isdigit():
+                command_id = int(command[0])  # Get the ID of the command to restrict
+                guild_id = str(message.guild.id)
+                expressions_file = "expressions.json"
+
+                # Load existing expressions
+                try:
+                    with open(expressions_file, "r") as file:
+                        expressions = json.load(file)
+                except FileNotFoundError:
+                    await message.channel.send("No commands found to modify.")
+                    return
+
+                # Check if the command with the given ID exists
+                if guild_id in expressions:
+                    commands = expressions[guild_id]["commands"]
+                    command_to_modify = None
+                    for cmd_name, cmd_data in list(commands.items()):
+                        if cmd_data["id"] == command_id:
+                            command_to_modify = cmd_name
+                            break
+
+                    if command_to_modify:
+                        # Mark the command as mod-only
+                        commands[command_to_modify]["mod_only"] = True
+
+                        # Save the updated expressions
+                        with open(expressions_file, "w") as file:
+                            json.dump(expressions, file, indent=4)
+
+                        await message.channel.send(f"Command `{command_id}` is now restricted to moderators only.")
+                    else:
+                        await message.channel.send(f"Command with ID `{command_id}` not found.")
+                else:
+                    await message.channel.send(f"No commands found for this server.")
+            else:
+                await message.channel.send(self.usage)
+        else:
+            await message.channel.send("**You must be a moderator to use this command.**")
 
 
 

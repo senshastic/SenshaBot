@@ -21,7 +21,7 @@ from helpers.misc_functions import (
 
 from helpers.userid_parser import parse_userid
 
-
+# deprecated 
 """
 class UnMuteCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:

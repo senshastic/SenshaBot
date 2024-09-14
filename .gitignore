@@ -1,6 +1,7 @@
 settings.json
 fallenstar.py
 expressions.json
+reminders.json
 token.txt
 .venv/*
 **__pycache__/

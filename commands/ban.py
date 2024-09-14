@@ -139,7 +139,6 @@ class TempBanCommand(Command):
             await message.channel.send("**You must be a moderator to use this command.**")
 
 
-
 class PreBanCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
         self.cmd = "preban"
@@ -155,7 +154,7 @@ class PreBanCommand(Command):
         if await author_is_mod(message.author, self.storage):
             if len(command) >= 2:
                 try:
-                    # Use the parser to extract the user ID
+                    # Parse the user ID
                     user_id = parse_userid(command[0])
                     reason = " ".join(command[1:])
                     guild_id = str(message.guild.id)
@@ -164,7 +163,11 @@ class PreBanCommand(Command):
                         # Ban the user by ID even if they're not in the server
                         await message.guild.ban(discord.Object(id=user_id), reason=reason)
 
-                        # Store ban information
+                        # Ensure the "banned_users" structure exists for the guild
+                        if "banned_users" not in self.storage.settings["guilds"].get(guild_id, {}):
+                            self.storage.settings["guilds"].setdefault(guild_id, {})["banned_users"] = {}
+
+                        # Store the ban information only for the current user
                         self.storage.settings["guilds"][guild_id]["banned_users"][str(user_id)] = {
                             "duration": -1,  # No duration means a permanent ban
                             "reason": reason
@@ -183,7 +186,6 @@ class PreBanCommand(Command):
                 await message.channel.send(self.not_enough_arguments.format(usage=self.usage))
         else:
             await message.channel.send("**You must be a moderator to use this command.**")
-
 
 
 # Collects a list of classes in the file
