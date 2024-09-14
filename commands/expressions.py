@@ -27,8 +27,6 @@ from discord.ui import View, Button
 import time
 import re
 
-import uuid
-
 from helpers.emoji_parser import parse_emotes
 
 class ExasCommand(Command):
@@ -65,17 +63,12 @@ class ExasCommand(Command):
 
                 # Create the guild entry if it doesn't exist
                 if guild_id not in expressions:
-                    expressions[guild_id] = {"commands": {}, "next_id": 1}
+                    expressions[guild_id] = {"commands": {}}
 
-                # Get the next ID and increment it
-                next_id = expressions[guild_id]["next_id"]
-                expressions[guild_id]["next_id"] += 1
-
-                # Store the new command with a sequential ID
+                # Store or overwrite the command based on the trigger
                 expressions[guild_id]["commands"][cmd_name] = {
                     "response": response,
-                    "creator": message.author.name,
-                    "id": next_id
+                    "creator": message.author.name
                 }
 
                 # Save the updated expressions
@@ -83,12 +76,11 @@ class ExasCommand(Command):
                     json.dump(expressions, file, indent=4)
 
                 # Create an embed for the response
-                embed = discord.Embed(title="New Command Created", color=discord.Color.green())
+                embed = discord.Embed(title="Command Created/Updated", color=discord.Color.green())
                 embed.add_field(name="Creator", value=message.author.name, inline=False)
-                embed.add_field(name="Command ID", value=str(next_id), inline=False)
                 embed.add_field(name="Trigger", value=f"`{self.client.prefix}{cmd_name}`", inline=False)
                 embed.add_field(name="Response", value=response, inline=False)
-                embed.set_footer(text=f"Created in {message.guild.name}")
+                embed.set_footer(text=f"Created/Updated in {message.guild.name}")
 
                 # Send the embed
                 await message.channel.send(embed=embed)
@@ -98,19 +90,19 @@ class ExasCommand(Command):
             await message.channel.send("**You must be a moderator to use this command.**")
 
 
-
 class ExaDeleteCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
         self.cmd = "exadelete"
         self.client = client_instance
         self.storage = client_instance.storage  # Access to the storage system
-        self.usage = f"Usage: {self.client.prefix}exadelete <command ID>"
+        self.usage = f"Usage: {self.client.prefix}exadelete <command name>"
 
     async def execute(self, message: discord.Message, **kwargs) -> None:
         command = kwargs.get("args")
         if await author_is_mod(message.author, self.storage):  # Only mods can delete commands
-            if len(command) == 1 and command[0].isdigit():
-                command_id = int(command[0])  # Get the ID of the command to delete
+            if len(command) == 1:
+                cmd_name = command[0].strip('"')
+
                 guild_id = str(message.guild.id)
                 expressions_file = "expressions.json"
 
@@ -122,27 +114,17 @@ class ExaDeleteCommand(Command):
                     await message.channel.send("No commands found to delete.")
                     return
 
-                # Check if the command with the given ID exists
-                if guild_id in expressions:
-                    commands = expressions[guild_id]["commands"]
-                    command_to_delete = None
-                    for cmd_name, cmd_data in list(commands.items()):
-                        if cmd_data["id"] == command_id:
-                            command_to_delete = cmd_name
-                            break
+                # Check if the command with the given trigger exists
+                if guild_id in expressions and cmd_name in expressions[guild_id]["commands"]:
+                    del expressions[guild_id]["commands"][cmd_name]
 
-                    if command_to_delete:
-                        del commands[command_to_delete]
+                    # Save the updated expressions
+                    with open(expressions_file, "w") as file:
+                        json.dump(expressions, file, indent=4)
 
-                        # Save the updated expressions
-                        with open(expressions_file, "w") as file:
-                            json.dump(expressions, file, indent=4)
-
-                        await message.channel.send(f"Command `{command_id}` has been deleted.")
-                    else:
-                        await message.channel.send(f"Command with ID `{command_id}` not found.")
+                    await message.channel.send(f"Command `{cmd_name}` has been deleted.")
                 else:
-                    await message.channel.send(f"No commands found for this server.")
+                    await message.channel.send(f"Command `{cmd_name}` not found.")
             else:
                 await message.channel.send(self.usage)
         else:
@@ -154,15 +136,15 @@ class ExaModifyCommand(Command):
         self.cmd = "examodify"
         self.client = client_instance
         self.storage = client_instance.storage  # Access to the storage system
-        self.usage = f"Usage: {self.client.prefix}examodify <command ID> <new response>"
+        self.usage = f"Usage: {self.client.prefix}examodify <command name> <new response>"
 
     async def execute(self, message: discord.Message, **kwargs) -> None:
         command = kwargs.get("args")
         if await author_is_mod(message.author, self.storage):  # Only mods can modify commands
-            if len(command) >= 2 and command[0].isdigit():
-                command_id = int(command[0])  # Get the ID of the command to modify
+            if len(command) >= 2:
+                cmd_name = command[0].strip('"')
 
-                # Preserve newlines by taking the entire message content after the command ID
+                # Preserve newlines by taking the entire message content after the command name
                 new_response = message.content.split(None, 2)[-1]
 
                 guild_id = str(message.guild.id)
@@ -176,27 +158,17 @@ class ExaModifyCommand(Command):
                     await message.channel.send("No commands found to modify.")
                     return
 
-                # Check if the command with the given ID exists
-                if guild_id in expressions:
-                    commands = expressions[guild_id]["commands"]
-                    command_to_modify = None
-                    for cmd_name, cmd_data in list(commands.items()):
-                        if cmd_data["id"] == command_id:
-                            command_to_modify = cmd_name
-                            break
+                # Check if the command with the given trigger exists
+                if guild_id in expressions and cmd_name in expressions[guild_id]["commands"]:
+                    expressions[guild_id]["commands"][cmd_name]["response"] = new_response
 
-                    if command_to_modify:
-                        commands[command_to_modify]["response"] = new_response
+                    # Save the updated expressions
+                    with open(expressions_file, "w") as file:
+                        json.dump(expressions, file, indent=4)
 
-                        # Save the updated expressions
-                        with open(expressions_file, "w") as file:
-                            json.dump(expressions, file, indent=4)
-
-                        await message.channel.send(f"Command `{command_id}` has been modified with new response: `{new_response}`.")
-                    else:
-                        await message.channel.send(f"Command with ID `{command_id}` not found.")
+                    await message.channel.send(f"Command `{cmd_name}` has been modified with new response: `{new_response}`.")
                 else:
-                    await message.channel.send(f"No commands found for this server.")
+                    await message.channel.send(f"Command `{cmd_name}` not found.")
             else:
                 await message.channel.send(self.usage)
         else:
@@ -224,7 +196,7 @@ class ExaListCommand(Command):
         # Check if the guild has commands
         if guild_id in expressions and expressions[guild_id]["commands"]:
             commands = expressions[guild_id]["commands"]
-            command_list = [(cmd_name, cmd_data["id"], cmd_data.get("mod_only", False)) for cmd_name, cmd_data in commands.items()]
+            command_list = [(cmd_name, cmd_data["creator"]) for cmd_name, cmd_data in commands.items()]
 
             # Divide the command list into pages of 10 commands each
             page_size = 10
@@ -233,11 +205,10 @@ class ExaListCommand(Command):
             # Function to create the embed for a specific page
             def create_embed(page_index):
                 embed = discord.Embed(title=f"Custom Commands (Page {page_index + 1}/{len(pages)})", color=discord.Color.blue())
-                for cmd_name, cmd_id, mod_only in pages[page_index]:
-                    mod_only_status = "Yes" if mod_only else "No"
+                for cmd_name, creator in pages[page_index]:
                     embed.add_field(
                         name=f"Command `{cmd_name}`",
-                        value=f"ID: {cmd_id}\nMod Only: {mod_only_status}",
+                        value=f"Created by: {creator}",
                         inline=False
                     )
                 embed.set_footer(text=f"Page {page_index + 1} of {len(pages)}")
@@ -278,59 +249,6 @@ class ExaListCommand(Command):
             await message.channel.send(embed=embed, view=view)
         else:
             await message.channel.send("No custom commands found for this server.")
-
-
-class ExaModCommand(Command):
-    def __init__(self, client_instance: ModerationBot) -> None:
-        self.cmd = "examod"
-        self.client = client_instance
-        self.storage = client_instance.storage  # Access to the storage system
-        self.usage = f"Usage: {self.client.prefix}examod <command ID>"
-
-    async def execute(self, message: discord.Message, **kwargs) -> None:
-        command = kwargs.get("args")
-        if await author_is_mod(message.author, self.storage):  # Only mods can restrict commands
-            if len(command) == 1 and command[0].isdigit():
-                command_id = int(command[0])  # Get the ID of the command to restrict
-                guild_id = str(message.guild.id)
-                expressions_file = "expressions.json"
-
-                # Load existing expressions
-                try:
-                    with open(expressions_file, "r") as file:
-                        expressions = json.load(file)
-                except FileNotFoundError:
-                    await message.channel.send("No commands found to modify.")
-                    return
-
-                # Check if the command with the given ID exists
-                if guild_id in expressions:
-                    commands = expressions[guild_id]["commands"]
-                    command_to_modify = None
-                    for cmd_name, cmd_data in list(commands.items()):
-                        if cmd_data["id"] == command_id:
-                            command_to_modify = cmd_name
-                            break
-
-                    if command_to_modify:
-                        # Mark the command as mod-only
-                        commands[command_to_modify]["mod_only"] = True
-
-                        # Save the updated expressions
-                        with open(expressions_file, "w") as file:
-                            json.dump(expressions, file, indent=4)
-
-                        await message.channel.send(f"Command `{command_id}` is now restricted to moderators only.")
-                    else:
-                        await message.channel.send(f"Command with ID `{command_id}` not found.")
-                else:
-                    await message.channel.send(f"No commands found for this server.")
-            else:
-                await message.channel.send(self.usage)
-        else:
-            await message.channel.send("**You must be a moderator to use this command.**")
-
-
 
 # Collects a list of classes in the file
 classes = inspect.getmembers(sys.modules[__name__], lambda member: inspect.isclass(member) and member.__module__ == __name__)

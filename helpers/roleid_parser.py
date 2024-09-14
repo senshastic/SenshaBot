@@ -1,7 +1,7 @@
 import re
 
 def parse_roleid(role_input: str) -> int:
-    # Replace escaped HTML characters with actual ones
+    # Replace all escaped HTML characters with actual ones
     role_input = role_input.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
 
     # Check if the input is a direct role ID (17-19 digits)
