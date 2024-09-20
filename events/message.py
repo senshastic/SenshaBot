@@ -1,32 +1,97 @@
 import bleach
 import inspect
 import sys
-
 import discord
+import re 
 
 from bot import ModerationBot
 from helpers.embed_builder import EmbedBuilder
 from events.base import EventHandler
 from helpers.misc_functions import author_is_mod
 
-import json 
+import json
+
 
 class MessageEvent(EventHandler):
     def __init__(self, client_instance: ModerationBot) -> None:
         self.client = client_instance
         self.storage = client_instance.storage
         self.event = "on_message"
+        self.chain_length = 5  # Define the minimum length of the chain
+        self.emoji_chain_file = "emoji_chain.json"  # JSON file to store emoji chains
+
+        # Initialize the emoji chain file if it doesn't exist
+        try:
+            with open(self.emoji_chain_file, "r") as file:
+                self.emoji_chains = json.load(file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.emoji_chains = {}
+            with open(self.emoji_chain_file, "w") as file:
+                json.dump(self.emoji_chains, file)
+
+    def save_emoji_chains(self) -> None:
+        """Save the current emoji chains to the JSON file."""
+        with open(self.emoji_chain_file, "w") as file:
+            json.dump(self.emoji_chains, file, indent=4)
+
+    def is_emoji_only_message(self, message: discord.Message) -> bool:
+        """Check if the message contains only Discord-style emotes."""
+        emote_pattern = r"(<a?:\w+:\d+>)"
+        words = message.content.strip().split()
+
+        # Return True only if all parts of the message match the emote pattern
+        return all(re.fullmatch(emote_pattern, word) for word in words)
+
+    def initialize_chain_for_channel(self, guild_id: str, channel_id: str) -> None:
+        """Initialize the emoji chain for a given guild and channel if not already initialized."""
+        if guild_id not in self.emoji_chains:
+            self.emoji_chains[guild_id] = {}
+        if channel_id not in self.emoji_chains[guild_id]:
+            self.emoji_chains[guild_id][channel_id] = []
+
+    def get_custom_emoji(self, name):
+        """Fetch the bot's custom emoji by name."""
+        for emoji in self.client.emojis:
+            if emoji.name == name:
+                return str(emoji)
+        return f":{name}:"
 
     async def handle(self, message: discord.Message, *args, **kwargs) -> None:
         user = message.author
         if user.bot or not message.content:
             return
 
+        # Extract the guild and channel ID
+        guild_id = str(message.guild.id)
+        channel_id = str(message.channel.id)
+
+        # Initialize the emoji chain for this guild and channel
+        self.initialize_chain_for_channel(guild_id, channel_id)
+
+        # Emoji chain detection logic
+        if self.is_emoji_only_message(message):
+            # Append the message to the chain
+            self.emoji_chains[guild_id][channel_id].append(message.content)
+            # Save the updated emoji chains to file
+            self.save_emoji_chains()
+
+        else:
+            # If a message breaks the chain and the chain is long enough
+            if len(self.emoji_chains[guild_id][channel_id]) >= self.chain_length:
+                # React with the custom `:BC_bonk:` emote
+                BC_bonk = self.get_custom_emoji("BC_bonk")
+                await message.add_reaction(BC_bonk)
+
+            # Reset the emoji chain for this channel
+            self.emoji_chains[guild_id][channel_id] = []
+            self.save_emoji_chains()
+
         # Check if the bot is mentioned
         if self.client.user.id in [mention.id for mention in message.mentions]:
             await message.reply("No u", mention_author=False)
             return
 
+        # Clean the message content
         message.content = bleach.clean(message.content)
         command = message.content.split()
         cmd = command.pop(0)
@@ -96,8 +161,6 @@ class MessageEvent(EventHandler):
                     )
                 else:
                     await message.channel.send(f"**Unknown command:** `{cmd}`")
-
-
 
 
 # deprecated log function

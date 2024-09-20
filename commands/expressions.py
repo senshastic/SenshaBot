@@ -19,7 +19,6 @@ from helpers.misc_functions import (author_is_mod, is_integer,
                                     is_valid_duration, parse_duration)
 
 import discord
-import json
 from discord.ext import commands
 
 from discord.ui import View, Button

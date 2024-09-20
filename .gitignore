@@ -1,9 +1,12 @@
 settings.json
 fallenstar.py
 expressions.json
+emoji_chain.json
 reminders.json
 token.txt
 .venv/*
 **__pycache__/
 *.code-workspace
 .DS_Store
+python
+python3

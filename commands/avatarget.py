@@ -46,5 +46,41 @@ class AvatarTargetCommand(Command):
             await message.channel.send(f"You must provide a user ID. {self.usage}")
 
 
+class SneakyAvatarGetCommand(Command):
+    def __init__(self, client_instance: ModerationBot) -> None:
+        self.cmd = "sneakyavatarget"
+        self.client = client_instance
+        self.storage = client_instance.storage  # Ensure storage is initialized
+        self.usage = f"Usage: {self.client.prefix}sneakyavatarget <user ID>"
+        self.invalid_user = "There is no user with the user ID: {user_id}. {usage}"
+        self.not_a_user_id = "{user_id} is not a valid user ID. {usage}"
+
+    async def execute(self, message: discord.Message, **kwargs) -> None:
+        command = kwargs.get("args")
+        if len(command) >= 1:
+            if re.match(r'<@\d{18}>', command[0]):
+                command[0] = command[0][2:-1]
+            if re.match(r'&lt;@\d{18}&gt;', command[0]):
+                command[0] = command[0][5:-4]
+            if is_integer(command[0]):
+                user_id = int(command[0])
+                try:
+                    user = await self.client.fetch_user(user_id)
+                    avatar_url = user.display_avatar.url  # Use display_avatar.url
+
+                    # Send the avatar URL in a DM to the user who requested it
+                    await message.author.send(f"Here is the avatar of user with ID `{user_id}`: {avatar_url}")
+                    
+                    # Delete the command message from the channel
+                    await message.delete()
+                    
+                except discord.errors.NotFound:
+                    await message.author.send(self.invalid_user.format(user_id=user_id, usage=self.usage))
+            else:
+                await message.author.send(self.not_a_user_id.format(user_id=command[0], usage=self.usage))
+        else:
+            await message.author.send(f"You must provide a user ID. {self.usage}")
+
+
 # Collects a list of classes in the file
 classes = inspect.getmembers(sys.modules[__name__], lambda member: inspect.isclass(member) and member.__module__ == __name__)
