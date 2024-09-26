@@ -11,7 +11,6 @@ from helpers.misc_functions import author_is_mod
 
 import json
 
-
 class MessageEvent(EventHandler):
     def __init__(self, client_instance: ModerationBot) -> None:
         self.client = client_instance
@@ -35,12 +34,18 @@ class MessageEvent(EventHandler):
             json.dump(self.emoji_chains, file, indent=4)
 
     def is_emoji_only_message(self, message: discord.Message) -> bool:
-        """Check if the message contains only Discord-style emotes."""
+        """Check if the message contains only Discord-style emotes or links to Discord emojis or attachments."""
         emote_pattern = r"(<a?:\w+:\d+>)"
-        words = message.content.strip().split()
+        discord_link_pattern = r"https:\/\/cdn\.discordapp\.com\/(emojis|attachments)\/\d+\/\d+\/\S+"  # Match emoji and attachment URLs
 
-        # Return True only if all parts of the message match the emote pattern
-        return all(re.fullmatch(emote_pattern, word) for word in words)
+        # Search the message content for emote patterns or discord emoji/attachment links, allowing adjacent emotes
+        combined_pattern = f"({emote_pattern}|{discord_link_pattern})"
+        
+        # Find all matches for either emotes or links
+        matches = re.findall(combined_pattern, message.content)
+
+        # If the number of matches equals the length of the message (implying the entire message is emotes/links), return True
+        return bool(matches) and "".join(match[0] for match in matches) == message.content
 
     def initialize_chain_for_channel(self, guild_id: str, channel_id: str) -> None:
         """Initialize the emoji chain for a given guild and channel if not already initialized."""
@@ -162,7 +167,7 @@ class MessageEvent(EventHandler):
                 else:
                     await message.channel.send(f"**Unknown command:** `{cmd}`")
 
-
+                    
 # deprecated log function
 """
 class MessageDeleteEvent(EventHandler):

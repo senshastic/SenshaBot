@@ -14,6 +14,7 @@ class ReadyEvent(EventHandler):
 
     async def handle(self, *args, **kwargs) -> None:
         print(f"Logged in as {self.client.user}")
+
         # Start the storage management and setup the guilds we are connected to.
         await self.client.storage.init()
 
@@ -23,8 +24,13 @@ class ReadyEvent(EventHandler):
 
         for guild in self.client.guilds:
             await self.client.setup_guild(guild)
+
         # Register some tasks
         self.client.loop.create_task(check_punishments(self.client))
+
+        # Sync slash commands with Discord
+        await self.client.tree.sync()
+
 
 
 # Collects a list of classes in the file
