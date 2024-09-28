@@ -34,11 +34,11 @@ class MessageEvent(EventHandler):
             json.dump(self.emoji_chains, file, indent=4)
 
     def is_emoji_only_message(self, message: discord.Message) -> bool:
-        """Check if the message contains only Discord-style emotes or links to Discord emojis or attachments."""
+        """Check if the message contains only Discord-style emotes, links to Discord emojis, attachments, or stickers."""
         emote_pattern = r"(<a?:\w+:\d+>)"
-        discord_link_pattern = r"https:\/\/cdn\.discordapp\.com\/(emojis|attachments)\/\d+\/\d+\/\S+"  # Match emoji and attachment URLs
+        discord_link_pattern = r"https:\/\/cdn\.discordapp\.com\/(emojis|attachments|stickers)\/\d+\/\d+\/\S+"  # Added stickers to the pattern
 
-        # Search the message content for emote patterns or discord emoji/attachment links, allowing adjacent emotes
+        # Search the message content for emote patterns or discord emoji/attachment/sticker links, allowing adjacent emotes
         combined_pattern = f"({emote_pattern}|{discord_link_pattern})"
         
         # Find all matches for either emotes or links
