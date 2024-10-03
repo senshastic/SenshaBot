@@ -15,5 +15,4 @@ def parse_userid(user_input: str) -> int:
         return int(user_id_match.group(1))  # Return the matched user ID
 
     # If no valid user ID is found, raise an error
-    print(f"No valid user ID found in input: {user_input}")
     raise ValueError(f"{user_input} is not a valid user ID or mention")

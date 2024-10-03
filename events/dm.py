@@ -5,6 +5,11 @@ from events.base import EventHandler
 import asyncio
 
 from helpers.emoji_parser import parse_emotes
+from helpers.attachment_parser import parse_attachments
+from helpers.userid_parser import parse_userid
+
+import asyncio
+import discord
 
 
 class DMHandler(EventHandler):
@@ -78,6 +83,9 @@ class DMHandler(EventHandler):
             # Parse the message content for emotes before sending
             parsed_message_content = parse_emotes(message.content, self.client)
 
+            # Prepare a list of files to send (if there are attachments)
+            files = [await attachment.to_file() for attachment in message.attachments]
+
             # Create an embed to display the DM
             embed = discord.Embed(title="New DM Received", color=discord.Color.blue())
             embed.add_field(name="From", value=f"{user.mention} ({user.name}#{user.discriminator})", inline=False)
@@ -86,5 +94,9 @@ class DMHandler(EventHandler):
 
             # Send the embed to the appropriate channel
             await channel.send(embed=embed)
+
+            # Send attachments if they exist
+            if files:
+                await channel.send(files=files)
         else:
             print(f"No valid DM or log channel set for guild {guild_id}.")

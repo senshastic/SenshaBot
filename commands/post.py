@@ -18,6 +18,8 @@ from helpers.misc_functions import (author_is_mod, is_integer,
 
 from helpers.emoji_parser import parse_emotes
 from helpers.userid_parser import parse_userid
+from helpers.attachment_parser import parse_attachments
+
 
 class PostCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
@@ -49,6 +51,9 @@ class PostCommand(Command):
                     # Parse the message content to replace custom emojis
                     message_content = parse_emotes(message_content, self.client)
 
+                    # Parse the message content for attachments
+                    message_content = parse_attachments(message_content)
+
                     if channel:
                         try:
                             # Configure allowed mentions to handle @everyone, @here, and user mentions
@@ -56,7 +61,6 @@ class PostCommand(Command):
 
                             # Send the message with allowed mentions
                             await channel.send(message_content, allowed_mentions=allowed_mentions)
-                            print(f"Message content to be sent: {message_content}")
 
                             # React with a checkmark to the command message
                             await message.add_reaction("✅")
@@ -89,8 +93,6 @@ class PostCommand(Command):
                 parsed_message.append(word)  # If parsing fails, leave as is
 
         return " ".join(parsed_message)
-
-
 
 
 

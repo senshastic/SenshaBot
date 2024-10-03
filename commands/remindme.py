@@ -10,6 +10,9 @@ from commands.base import Command
 from datetime import datetime
 from helpers.timeframe_parser import parse_duration
 from helpers.emoji_parser import parse_emotes
+from helpers.attachment_parser import parse_attachments
+from helpers.userid_parser import parse_userid
+
 
 REMINDER_FILE_PATH = "reminders.json"
 
@@ -37,6 +40,11 @@ class RemindMeCommand(Command):
             # Parse the timeframe and the reminder message
             timeframe = command[0]
             reminder_message = " ".join(command[1:])
+
+            # Parse user mentions, emotes, and attachments
+            reminder_message = await self.parse_mentions(reminder_message, message.guild)
+            reminder_message = parse_emotes(reminder_message, self.client)
+            reminder_message = parse_attachments(reminder_message)
 
             try:
                 remind_time = parse_duration(timeframe)
@@ -91,6 +99,23 @@ class RemindMeCommand(Command):
         with open(REMINDER_FILE_PATH, "w") as f:
             json.dump(data, f, indent=4)
 
+    async def parse_mentions(self, message_content: str, guild: discord.Guild) -> str:
+        """Parse and replace user mentions in the message content with actual mentions."""
+        words = message_content.split()
+        parsed_message = []
+        for word in words:
+            try:
+                # Attempt to parse each word as a user mention or raw user ID
+                user_id = parse_userid(word)
+                user = guild.get_member(user_id)
+                if user:
+                    parsed_message.append(user.mention)
+                else:
+                    parsed_message.append(word)  # If not a valid mention, leave as is
+            except ValueError:
+                parsed_message.append(word)  # If parsing fails, leave as is
+
+        return " ".join(parsed_message)
 
 class RemindMeDMCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
@@ -107,7 +132,12 @@ class RemindMeDMCommand(Command):
         if len(command) >= 2:
             # Parse the timeframe (first argument) and treat the rest as the reminder message
             timeframe = command[0]
-            reminder_message = " ".join(command[1:])  # Join everything after the timeframe as the reminder message
+            reminder_message = " ".join(command[1:])
+
+            # Parse user mentions, emotes, and attachments
+            reminder_message = await self.parse_mentions(reminder_message, message.guild)
+            reminder_message = parse_emotes(reminder_message, self.client)
+            reminder_message = parse_attachments(reminder_message)
 
             try:
                 remind_time = parse_duration(timeframe)
@@ -116,11 +146,8 @@ class RemindMeDMCommand(Command):
                 guild_id = str(message.guild.id)
                 user_id = str(message.author.id)
 
-                # Parse the message content to replace custom emojis
-                reminder_message = parse_emotes(reminder_message, self.client)
-
                 # Store reminder in the JSON file
-                await self.store_reminder(guild_id, user_id, reminder_message, remind_time, "dm")  
+                await self.store_reminder(guild_id, user_id, reminder_message, remind_time, "dm")
 
                 # React with a checkmark
                 await message.add_reaction("✅")
@@ -145,36 +172,45 @@ class RemindMeDMCommand(Command):
 
     async def store_reminder(self, guild_id, user_id, reminder_message, remind_time, reminder_type):
         """Store the reminder in reminders.json."""
-        # Try loading the JSON data, or initialize it if the file does not exist
         try:
             with open(REMINDER_FILE_PATH, "r") as f:
                 data = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            # Initialize the JSON structure if file doesn't exist or is corrupted
             data = {"guilds": {}}
 
-        # Ensure the guild structure exists
-        if "guilds" not in data:
-            data["guilds"] = {}
-
-        # Ensure the guild ID is in the structure
         if guild_id not in data["guilds"]:
             data["guilds"][guild_id] = {"reminders": {}}
 
-        # Ensure the user ID has a reminders list
         if user_id not in data["guilds"][guild_id]["reminders"]:
             data["guilds"][guild_id]["reminders"][user_id] = []
 
-        # Add the reminder data
         data["guilds"][guild_id]["reminders"][user_id].append({
-        "message": reminder_message,
-        "time": remind_time.timestamp(),
-        "type": reminder_type
+            "message": reminder_message,
+            "time": remind_time.timestamp(),
+            "type": reminder_type
         })
 
-        # Write the updated data back to the file
+        # Save updated reminders
         with open(REMINDER_FILE_PATH, "w") as f:
             json.dump(data, f, indent=4)
+
+    async def parse_mentions(self, message_content: str, guild: discord.Guild) -> str:
+        """Parse and replace user mentions in the message content with actual mentions."""
+        words = message_content.split()
+        parsed_message = []
+        for word in words:
+            try:
+                # Attempt to parse each word as a user mention or raw user ID
+                user_id = parse_userid(word)
+                user = guild.get_member(user_id)
+                if user:
+                    parsed_message.append(user.mention)
+                else:
+                    parsed_message.append(word)  # If not a valid mention, leave as is
+            except ValueError:
+                parsed_message.append(word)  # If parsing fails, leave as is
+
+        return " ".join(parsed_message)
 
 
 # Collects a list of classes in the file

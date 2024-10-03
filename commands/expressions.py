@@ -27,6 +27,8 @@ import time
 import re
 
 from helpers.emoji_parser import parse_emotes
+from helpers.attachment_parser import parse_attachments
+from helpers.userid_parser import parse_userid
 
 class ExasCommand(Command):
     def __init__(self, client_instance: ModerationBot) -> None:
@@ -47,8 +49,10 @@ class ExasCommand(Command):
                 # Rebuild the original message content to include newlines
                 response = message.content.split(None, 2)[-1]  # Get everything after the command name
 
-                # Parse the response to handle both custom emotes and bot-specific emotes
+                # Parse the response to handle custom emotes, attachments, and user mentions
                 response = parse_emotes(response, self.client)
+                response = parse_attachments(response)
+                response = await self.parse_mentions(response, message.guild)
 
                 guild_id = str(message.guild.id)
                 expressions_file = "expressions.json"  # Path to your expressions.json
@@ -87,6 +91,24 @@ class ExasCommand(Command):
                 await message.channel.send(self.usage)
         else:
             await message.channel.send("**You must be a moderator to use this command.**")
+
+    async def parse_mentions(self, response: str, guild: discord.Guild) -> str:
+        """Parse and replace user mentions in the response with actual mentions."""
+        words = response.split()
+        parsed_response = []
+        for word in words:
+            try:
+                # Attempt to parse each word as a user mention or raw user ID
+                user_id = parse_userid(word)
+                user = guild.get_member(user_id)
+                if user:
+                    parsed_response.append(user.mention)
+                else:
+                    parsed_response.append(word)  # If not a valid mention, leave as is
+            except ValueError:
+                parsed_response.append(word)  # If parsing fails, leave as is
+
+        return " ".join(parsed_response)
 
 
 class ExaDeleteCommand(Command):
@@ -146,6 +168,11 @@ class ExaModifyCommand(Command):
                 # Preserve newlines by taking the entire message content after the command name
                 new_response = message.content.split(None, 2)[-1]
 
+                # Parse the new response for user mentions, custom emotes, and attachments
+                new_response = await self.parse_mentions(new_response, message.guild)
+                new_response = parse_emotes(new_response, self.client)
+                new_response = parse_attachments(new_response)
+
                 guild_id = str(message.guild.id)
                 expressions_file = "expressions.json"
 
@@ -172,6 +199,24 @@ class ExaModifyCommand(Command):
                 await message.channel.send(self.usage)
         else:
             await message.channel.send("**You must be a moderator to use this command.**")
+
+    async def parse_mentions(self, response: str, guild: discord.Guild) -> str:
+        """Parse and replace user mentions in the response with actual mentions."""
+        words = response.split()
+        parsed_response = []
+        for word in words:
+            try:
+                # Attempt to parse each word as a user mention or raw user ID
+                user_id = parse_userid(word)
+                user = guild.get_member(user_id)
+                if user:
+                    parsed_response.append(user.mention)
+                else:
+                    parsed_response.append(word)  # If not a valid mention, leave as is
+            except ValueError:
+                parsed_response.append(word)  # If parsing fails, leave as is
+
+        return " ".join(parsed_response)
 
 
 class ExaListCommand(Command):
